@@ -1332,6 +1332,7 @@ limitations under the License.
                 <requireAttribute>OCCUPANCY</requireAttribute>
                 <requireAttribute>OCCUPANCY_SENSOR_TYPE</requireAttribute>
             </include>
+            <include cluster="Boolean State Configuration" client="false" server="true" clientLocked="true" serverLocked="false"></include>
         </clusters>
     </deviceType>
     <deviceType>

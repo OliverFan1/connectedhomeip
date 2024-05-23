@@ -9589,6 +9589,9 @@
               # Ideally none of UnitTesting would be exposed as public API, but
               # for now just start doing that for new additions to it.
               - MeiInt8u
+          OccupancySensing:
+              - HoldTime
+              - HoldTimeLimits
       commands:
           DoorLock:
               # Aliro is not ready yet.
@@ -9624,11 +9627,25 @@
               - PresetTypeStruct
               - ScheduleTypeStruct
               - QueuedPresetStruct
+          OccupancySensing:
+              - HoldTimeLimitsStruct
+      struct fields:
+          OccupancySensing:
+              HoldTimeLimitsStruct:
+                  - HoldTimeMin
+                  - HoldTimeMax
+                  - HoldTimeDefault
       events:
           UnitTesting:
               # Ideally none of UnitTesting would be exposed as public API, but
               # for now just start doing that for new additions to it.
               - TestDifferentVendorMeiEvent
+          OccupancySensing:
+              - OccupancyChanged
+      event fields:
+          OccupancySensing:
+              OccupancyChanged:
+                  - occupancy
       enums:
           Thermostat:
               # Targeting Spring 2024 Matter release
@@ -9661,6 +9678,8 @@
           GeneralDiagnostics:
               # Targeting Spring 2024 Matter release
               - Feature
+          OccupancySensing:
+              - Feature
       bitmap values:
           DoorLock:
               Feature:
@@ -9684,6 +9703,16 @@
                   # Not really part of the spec, need to think about whether to
                   # expose this.
                   - NoFeatures
+          OccupancySensing:
+              Feature:
+                  - Other
+                  - PassiveInfrared
+                  - Ultrasonic
+                  - PhysicalContact
+                  - ActiveInfrared
+                  - Radar
+                  - RFSensing
+                  - Vision
 
 - release: "Future"
   versions: "future"
