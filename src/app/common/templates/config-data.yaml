@@ -147,6 +147,7 @@ CodeDrivenClusters:
     # keep-sorted start
     - Access Control
     - Administrator Commissioning
+    - Ambient Sensing Union
     - Basic Information
     - Binding
     - Boolean State

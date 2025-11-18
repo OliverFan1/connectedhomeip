@@ -181,6 +181,16 @@
             "AdminFabricIndex",
             "AdminVendorId"
         ],
+        "Ambient Sensing Union": [
+            "ClusterRevision",
+            "UnionID",
+            "UnionName",
+            "UnionHealth",
+            "UnionSensorList",
+            "UnionSensorHealth",
+            "SensorID",
+            "ZoneSensorList"
+        ],
         "Basic Information": [
             "FeatureMap",
             "ClusterRevision",
