@@ -39,6 +39,7 @@
 #include <oven-modes.h>
 #include <oven-operational-state-delegate.h>
 #include <rvc-modes.h>
+#include "ambient-sensing-union-instance.h"
 
 #include <memory>
 #include <string>
@@ -373,6 +374,149 @@ void EmitOccupancyChangedEvent(EndpointId endpointId, uint8_t occupancyValue)
     }
 }
 
+/**
+ * Named pipe handler for Ambient Sensing Union demo
+ *
+ * Usage example:
+ *   echo '{"Name": "AmbientSensingUnionDemo"}' > /tmp/chip_all_clusters_fifo_1146610
+ *
+ * JSON Arguments:
+ *   - "Name": Must be "AmbientSensingUnionDemo"
+ *
+ * @param jsonValue - JSON payload from named pipe
+ */
+void HandleAmbientSensingUnionDemo(Json::Value & jsonValue)
+{
+    ChipLogProgress(NotSpecified, "🎯 Starting Ambient Sensing Union demo via command");
+    gAmbientSensingUnionInstance.RunDemo();
+}
+
+/**
+ * Named pipe handler for setting union name
+ *
+ * Usage example:
+ *   echo '{"Name": "SetUnionName", "UnionName": "MySmartHome"}' > /tmp/chip_all_clusters_fifo_1146610
+ *
+ * JSON Arguments:
+ *   - "Name": Must be "SetUnionName"
+ *   - "UnionName": The new union name (string)
+ *
+ * @param jsonValue - JSON payload from named pipe
+ */
+void HandleSetUnionName(Json::Value & jsonValue)
+{
+    if (!jsonValue.isMember("UnionName") || !jsonValue["UnionName"].isString())
+    {
+        std::string inputJson = jsonValue.toStyledString();
+        ChipLogError(NotSpecified, "Missing or invalid UnionName in %s", inputJson.c_str());
+        return;
+    }
+
+    std::string unionName = jsonValue["UnionName"].asString();
+    
+    // Use a helper method in the instance to set union name
+    CHIP_ERROR error = gAmbientSensingUnionInstance.SetUnionName(chip::CharSpan(unionName.c_str(), unionName.length()));
+    if (error == CHIP_NO_ERROR)
+    {
+        ChipLogProgress(NotSpecified, "✅ Union name set to: %s", unionName.c_str());
+    }
+    else
+    {
+        ChipLogError(NotSpecified, "❌ Failed to set union name");
+    }
+}
+
+/**
+ * Named pipe handler for setting union health
+ *
+ * Usage example:
+ *   echo '{"Name": "SetUnionHealth", "Health": 1}' > /tmp/chip_all_clusters_fifo_1146610
+ *
+ * JSON Arguments:
+ *   - "Name": Must be "SetUnionHealth"
+ *   - "Health": 0=FullyFunctional, 1=LimitedDegraded, 2=NonFunctional
+ *
+ * @param jsonValue - JSON payload from named pipe
+ */
+void HandleSetUnionHealth(Json::Value & jsonValue)
+{
+    if (!jsonValue.isMember("Health") || !jsonValue["Health"].isNumeric())
+    {
+        std::string inputJson = jsonValue.toStyledString();
+        ChipLogError(NotSpecified, "Missing or invalid Health in %s", inputJson.c_str());
+        return;
+    }
+
+    uint8_t healthValue = static_cast<uint8_t>(jsonValue["Health"].asUInt());
+    if (healthValue > 2)
+    {
+        ChipLogError(NotSpecified, "Invalid health value %u (must be 0-2)", healthValue);
+        return;
+    }
+
+    CHIP_ERROR error = gAmbientSensingUnionInstance.SetUnionHealth(healthValue);
+    if (error == CHIP_NO_ERROR)
+    {
+        const char * healthStr = (healthValue == 0) ? "Fully Functional" :
+                                (healthValue == 1) ? "Limited/Degraded" : "Non-Functional";
+        ChipLogProgress(NotSpecified, "✅ Union health set to: %s", healthStr);
+    }
+    else
+    {
+        ChipLogError(NotSpecified, "❌ Failed to set union health");
+    }
+}
+
+/**
+ * Named pipe handler for setting union sensor list
+ *
+ * Usage example:
+ *   echo '{"Name": "SetUnionSensorList", "SensorList": [100, 101, 102]}' > /tmp/chip_all_clusters_fifo_1146610
+ *
+ * JSON Arguments:
+ *   - "Name": Must be "SetUnionSensorList"
+ *   - "SensorList": Array of sensor IDs
+ *
+ * @param jsonValue - JSON payload from named pipe
+ */
+void HandleSetUnionSensorList(Json::Value & jsonValue)
+{
+    if (!jsonValue.isMember("SensorList") || !jsonValue["SensorList"].isArray())
+    {
+        std::string inputJson = jsonValue.toStyledString();
+        ChipLogError(NotSpecified, "Missing or invalid SensorList in %s", inputJson.c_str());
+        return;
+    }
+
+    Json::Value sensorArray = jsonValue["SensorList"];
+    if (sensorArray.size() == 0 || sensorArray.size() > 128)
+    {
+        ChipLogError(NotSpecified, "Invalid sensor list size %u (must be 1-128)", static_cast<unsigned>(sensorArray.size()));
+        return;
+    }
+
+    uint8_t sensorList[128];
+    for (Json::ArrayIndex i = 0; i < sensorArray.size(); i++)
+    {
+        if (!sensorArray[i].isNumeric())
+        {
+            ChipLogError(NotSpecified, "Invalid sensor ID at index %u", i);
+            return;
+        }
+        sensorList[i] = static_cast<uint8_t>(sensorArray[i].asUInt());
+    }
+
+    CHIP_ERROR error = gAmbientSensingUnionInstance.SetUnionSensorList(chip::Span<const uint8_t>(sensorList, sensorArray.size()));
+    if (error == CHIP_NO_ERROR)
+    {
+        ChipLogProgress(NotSpecified, "✅ Union sensor list updated with %u sensors", static_cast<unsigned>(sensorArray.size()));
+    }
+    else
+    {
+        ChipLogError(NotSpecified, "❌ Failed to set union sensor list");
+    }
+}
+
 } // namespace
 
 AllClustersAppCommandHandler * AllClustersAppCommandHandler::FromJSON(const char * json)
@@ -593,6 +737,22 @@ void AllClustersAppCommandHandler::HandleCommand(intptr_t context)
     else if (name == "UserIntentCommissioningStart")
     {
         TEMPORARY_RETURN_IGNORED Server::GetInstance().GetCommissioningWindowManager().OpenBasicCommissioningWindow();
+    }
+    else if (name == "AmbientSensingUnionDemo")
+    {
+        HandleAmbientSensingUnionDemo(self->mJsonValue);
+    }
+    else if (name == "SetUnionName")
+    {
+        HandleSetUnionName(self->mJsonValue);
+    }
+    else if (name == "SetUnionHealth")
+    {
+        HandleSetUnionHealth(self->mJsonValue);
+    }
+    else if (name == "SetUnionSensorList")
+    {
+        HandleSetUnionSensorList(self->mJsonValue);
     }
     else
     {

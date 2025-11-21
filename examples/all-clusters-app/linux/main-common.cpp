@@ -40,6 +40,7 @@
 #include "tcc-mode.h"
 #include "thermostat-delegate-impl.h"
 #include "tls-client-management-instance.h"
+#include "ambient-sensing-union-instance.h"
 
 #include <Options.h>
 #include <app-common/zap-generated/attributes/Accessors.h>
@@ -199,6 +200,14 @@ void ApplicationInit()
 #ifdef MATTER_DM_PLUGIN_DISHWASHER_ALARM_SERVER
     MatterDishwasherAlarmServerInit();
 #endif
+
+    // Initialize Ambient Sensing Union example
+    CHIP_ERROR err = gAmbientSensingUnionInstance.Initialize();
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(AppServer, "Failed to initialize Ambient Sensing Union example: %" CHIP_ERROR_FORMAT, err.Format());
+    }
+
     Clusters::TemperatureControl::SetInstance(&sAppSupportedTemperatureLevelsDelegate);
     Clusters::ModeSelect::setSupportedModesManager(&sStaticSupportedModesManager);
 
