@@ -39,6 +39,7 @@
 #include <oven-modes.h>
 #include <oven-operational-state-delegate.h>
 #include <rvc-modes.h>
+#include "ambient-sensing-union-instance.h"
 
 #include <memory>
 #include <string>
@@ -355,6 +356,23 @@ void HandleSimulateSwitchIdle(Json::Value & jsonValue)
     (void) Switch::Attributes::CurrentPosition::Set(endpointId, 0);
 }
 
+/**
+ * Named pipe handler for Ambient Sensing Union demo
+ *
+ * Usage example:
+ *   echo '{"Name": "AmbientSensingUnionDemo"}' > /tmp/chip_all_clusters_fifo_1146610
+ *
+ * JSON Arguments:
+ *   - "Name": Must be "AmbientSensingUnionDemo"
+ *
+ * @param jsonValue - JSON payload from named pipe
+ */
+void HandleAmbientSensingUnionDemo(Json::Value & jsonValue)
+{
+    ChipLogProgress(NotSpecified, "🎯 Starting Ambient Sensing Union demo via command");
+    gAmbientSensingUnionInstance.RunDemo();
+}
+
 } // namespace
 
 AllClustersAppCommandHandler * AllClustersAppCommandHandler::FromJSON(const char * json)
@@ -575,6 +593,10 @@ void AllClustersAppCommandHandler::HandleCommand(intptr_t context)
     else if (name == "UserIntentCommissioningStart")
     {
         TEMPORARY_RETURN_IGNORED Server::GetInstance().GetCommissioningWindowManager().OpenBasicCommissioningWindow();
+    }
+    else if (name == "AmbientSensingUnionDemo")
+    {
+        HandleAmbientSensingUnionDemo(self->mJsonValue);
     }
     else
     {
