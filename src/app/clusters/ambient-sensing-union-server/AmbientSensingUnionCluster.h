@@ -113,6 +113,10 @@ public:
     // Event generation
     CHIP_ERROR GenerateUnionContributorListChangeEvent();
 
+    // Delegate methods
+    AmbientSensingUnionDelegate * GetDelegate() const { return mDelegate; }
+    void SetDelegate(AmbientSensingUnionDelegate * delegate) { mDelegate = delegate; }
+
 private:
     static constexpr size_t kMaxUnionContributorListSize = 128;
     static constexpr size_t kMaxUnionNameSize = 128;

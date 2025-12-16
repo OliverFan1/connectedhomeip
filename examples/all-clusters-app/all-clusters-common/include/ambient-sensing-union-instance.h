@@ -40,11 +40,11 @@ class AmbientSensingUnionInstance
 public:
     CHIP_ERROR Initialize();
     void RunDemo();
-
+/*
     CHIP_ERROR SetUnionName(chip::EndpointId endpointId, const chip::CharSpan & unionName);
     CHIP_ERROR SetUnionHealth(chip::EndpointId endpointId, uint8_t healthValue);
     CHIP_ERROR SetUnionContributorList(chip::EndpointId endpointId, const chip::Span<const chip::app::Clusters::AmbientSensingUnion::Structs::UnionMemberStruct::Type> & contributorList);
-
+*/
 private:
     static constexpr uint8_t MAX_UNION_CONTRIBUTOR_LIST_SIZE = 128;
 
