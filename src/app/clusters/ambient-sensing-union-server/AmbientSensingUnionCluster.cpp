@@ -265,7 +265,6 @@ DataModel::ActionReturnStatus AmbientSensingUnionCluster::SetUnionContributorLis
         return DataModel::ActionReturnStatus::FixedStatus::kWriteSuccessNoOp;
     }
     
-    // Assign elements using STL assign
     mUnionContributorList.assign(contributorList.begin(), contributorList.end());
     
     NotifyAttributeChanged(Attributes::UnionContributorList::Id);
@@ -293,7 +292,6 @@ CHIP_ERROR AmbientSensingUnionCluster::GenerateUnionContributorListChangeEvent()
     {
         Events::UnionContributorListChange::Type event;
         
-        // DataModel::List ensures read-only access
         event.unionContributorList = DataModel::List<const AmbientSensingUnion::Structs::UnionMemberStruct::Type>(
             mUnionContributorList.data(), mUnionContributorList.size());
         

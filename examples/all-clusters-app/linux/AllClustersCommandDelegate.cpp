@@ -369,7 +369,7 @@ void HandleSimulateSwitchIdle(Json::Value & jsonValue)
  */
 void HandleAmbientSensingUnionDemo(Json::Value & jsonValue)
 {
-    ChipLogProgress(NotSpecified, "🎯 Starting Ambient Sensing Union demo via command");
+    ChipLogProgress(NotSpecified, "ASU - Starting Ambient Sensing Union demo via command");
     gAmbientSensingUnionInstance.RunDemo();
 }
 

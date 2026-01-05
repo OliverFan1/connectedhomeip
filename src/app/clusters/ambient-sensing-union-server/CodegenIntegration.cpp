@@ -47,13 +47,11 @@ public:
         AmbientSensingUnionCluster::Config config(endpointId);
         config.WithFeatures(static_cast<Feature>(featureMap));
 
-        // Enable UnionName if it's in the optional attributes
         if (optionalAttributeBits & (1 << Attributes::UnionName::Id))
         {
             config.WithUnionName("AmbientSensingUnion"_span);
         }
 
-        // Initialize with default UnionHealth if Leader feature is enabled
         if (featureMap & to_underlying(Feature::kLeader))
         {
             config.WithUnionHealth(AmbientSensingUnion::UnionHealthEnum::kFullyFunctional);

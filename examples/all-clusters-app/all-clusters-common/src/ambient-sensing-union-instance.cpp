@@ -24,7 +24,7 @@ using namespace chip::app;
 using namespace chip::app::Clusters;
 using namespace chip::app::Clusters::AmbientSensingUnion;
 
-// Delegate implementations
+// Delegate implementation
 void LeaderSensorDelegate::OnUnionNameChanged(EndpointId endpointId, const CharSpan & unionName)
 {
     ChipLogProgress(AppServer, "ASU - Leader EP %u: Union name changed to: %.*s", 
@@ -51,12 +51,6 @@ void LeaderSensorDelegate::OnUnionContributorListChanged(EndpointId endpointId, 
                        contributorList[i].contributorEndpointID,
                        contributorList[i].contributorHealth.Raw());
     }
-}
-
-void MemberSensorDelegate::OnUnionNameChanged(EndpointId endpointId, const CharSpan & unionName)
-{
-    ChipLogProgress(AppServer, "ASU - Member EP %u: Received union name update: %.*s", 
-                   endpointId, static_cast<int>(unionName.size()), unionName.data());
 }
 
 // Application implementation
@@ -149,12 +143,12 @@ CHIP_ERROR AmbientSensingUnionInstance::InitializeLeaderSensor(EndpointId endpoi
     }
     
     // Initialize with a single contributor (the leader itself)
-    // Use endpoint-specific node ID for demonstration
+    // Use endpoint-specific node ID for example
     uint64_t nodeId = 0x1000000000000000ULL + endpointId;
     Structs::UnionMemberStruct::Type initialContributor = {
         .contributorNodeID = nodeId,
         .contributorEndpointID = endpointId,
-        .contributorHealth = BitMask<UnionContributorHealthBitmap>(0x01)  // Wrap in BitMask
+        .contributorHealth = BitMask<UnionContributorHealthBitmap>(UnionContributorHealthBitmap::kMatterContributorOnline)
     };
     
     auto listStatus = leaderCluster->SetUnionContributorList(Span<const Structs::UnionMemberStruct::Type>(&initialContributor, 1));
@@ -213,10 +207,10 @@ void AmbientSensingUnionInstance::SimulateUnionGrowth(EndpointId endpointId)
     // Add more contributors to the union - use endpoint-specific node IDs
     uint64_t baseNodeId = 0x1000000000000000ULL + endpointId;
     Structs::UnionMemberStruct::Type expandedContributorList[] = {
-    { .contributorNodeID = baseNodeId, .contributorEndpointID = endpointId, .contributorHealth = BitMask<UnionContributorHealthBitmap>(0x01) },
-    { .contributorNodeID = baseNodeId + 0x100, .contributorEndpointID = static_cast<uint16_t>(endpointId + 1), .contributorHealth = BitMask<UnionContributorHealthBitmap>(0x01) },
-    { .contributorNodeID = baseNodeId + 0x200, .contributorEndpointID = static_cast<uint16_t>(endpointId + 2), .contributorHealth = BitMask<UnionContributorHealthBitmap>(0x04) },
-    { .contributorNodeID = baseNodeId + 0x300, .contributorEndpointID = static_cast<uint16_t>(endpointId + 3), .contributorHealth = BitMask<UnionContributorHealthBitmap>(0x01) }
+    { .contributorNodeID = baseNodeId, .contributorEndpointID = endpointId, .contributorHealth = BitMask<UnionContributorHealthBitmap>(UnionContributorHealthBitmap::kMatterContributorOnline) },
+    { .contributorNodeID = baseNodeId + 0x100, .contributorEndpointID = static_cast<uint16_t>(endpointId + 1), .contributorHealth = BitMask<UnionContributorHealthBitmap>(UnionContributorHealthBitmap::kMatterContributorOnline) },
+    { .contributorNodeID = baseNodeId + 0x200, .contributorEndpointID = static_cast<uint16_t>(endpointId + 2), .contributorHealth = BitMask<UnionContributorHealthBitmap>(UnionContributorHealthBitmap::kNonMatterContributorOnline) },
+    { .contributorNodeID = baseNodeId + 0x300, .contributorEndpointID = static_cast<uint16_t>(endpointId + 3), .contributorHealth = BitMask<UnionContributorHealthBitmap>(UnionContributorHealthBitmap::kMatterContributorOnline) }
 };
     
     auto status = cluster->SetUnionContributorList(Span<const Structs::UnionMemberStruct::Type>(expandedContributorList, 4));
@@ -244,10 +238,10 @@ void AmbientSensingUnionInstance::SimulateHealthChanges(EndpointId endpointId)
     // Simulate one contributor going offline
     uint64_t baseNodeId = 0x1000000000000000ULL + endpointId;
     Structs::UnionMemberStruct::Type contributorListWithDegradedHealth[] = {
-    { .contributorNodeID = baseNodeId, .contributorEndpointID = endpointId, .contributorHealth = BitMask<UnionContributorHealthBitmap>(0x01) },
-    { .contributorNodeID = baseNodeId + 0x100, .contributorEndpointID = static_cast<uint16_t>(endpointId + 1), .contributorHealth = BitMask<UnionContributorHealthBitmap>(0x02) },
-    { .contributorNodeID = baseNodeId + 0x200, .contributorEndpointID = static_cast<uint16_t>(endpointId + 2), .contributorHealth = BitMask<UnionContributorHealthBitmap>(0x04) },
-    { .contributorNodeID = baseNodeId + 0x300, .contributorEndpointID = static_cast<uint16_t>(endpointId + 3), .contributorHealth = BitMask<UnionContributorHealthBitmap>(0x01) }
+    { .contributorNodeID = baseNodeId, .contributorEndpointID = endpointId, .contributorHealth = BitMask<UnionContributorHealthBitmap>(UnionContributorHealthBitmap::kMatterContributorOnline) },
+    { .contributorNodeID = baseNodeId + 0x100, .contributorEndpointID = static_cast<uint16_t>(endpointId + 1), .contributorHealth = BitMask<UnionContributorHealthBitmap>(UnionContributorHealthBitmap::kMatterContributorOffline) },
+    { .contributorNodeID = baseNodeId + 0x200, .contributorEndpointID = static_cast<uint16_t>(endpointId + 2), .contributorHealth = BitMask<UnionContributorHealthBitmap>(UnionContributorHealthBitmap::kNonMatterContributorOnline) },
+    { .contributorNodeID = baseNodeId + 0x300, .contributorEndpointID = static_cast<uint16_t>(endpointId + 3), .contributorHealth = BitMask<UnionContributorHealthBitmap>(UnionContributorHealthBitmap::kMatterContributorOnline) }
 };
     
     auto status = cluster->SetUnionContributorList(Span<const Structs::UnionMemberStruct::Type>(contributorListWithDegradedHealth, 4));
@@ -271,50 +265,3 @@ void AmbientSensingUnionInstance::SimulateHealthChanges(EndpointId endpointId)
 
 // Global instance
 AmbientSensingUnionInstance gAmbientSensingUnionInstance;
-/*
-CHIP_ERROR AmbientSensingUnionInstance::SetUnionName(EndpointId endpointId, const CharSpan & unionName)
-{
-    auto * cluster = FindClusterOnEndpoint(endpointId);
-    VerifyOrReturnError(cluster != nullptr, CHIP_ERROR_NOT_FOUND);
-    
-    auto status = cluster->SetUnionName(unionName);
-    if (!status.IsSuccess())
-    {
-        ChipLogError(AppServer, "ASU - Failed to set union name on endpoint %u", endpointId);
-        return CHIP_ERROR_INTERNAL;
-    }
-    return CHIP_NO_ERROR;
-}
-
-CHIP_ERROR AmbientSensingUnionInstance::SetUnionHealth(EndpointId endpointId, uint8_t healthValue)
-{
-    auto * cluster = FindClusterOnEndpoint(endpointId);
-    VerifyOrReturnError(cluster != nullptr, CHIP_ERROR_NOT_FOUND);
-    
-    auto health = static_cast<AmbientSensingUnion::UnionHealthEnum>(healthValue);
-    auto status = cluster->SetUnionHealth(health);
-    if (!status.IsSuccess())
-    {
-        ChipLogError(AppServer, "ASU - Failed to set union health on endpoint %u", endpointId);
-        return CHIP_ERROR_INTERNAL;
-    }
-    return CHIP_NO_ERROR;
-}
-
-CHIP_ERROR AmbientSensingUnionInstance::SetUnionContributorList(EndpointId endpointId, const Span<const Structs::UnionMemberStruct::Type> & contributorList)
-{
-    VerifyOrReturnError(!contributorList.empty(), CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrReturnError(contributorList.size() <= MAX_UNION_CONTRIBUTOR_LIST_SIZE, CHIP_ERROR_INVALID_ARGUMENT);
-
-    auto * cluster = FindClusterOnEndpoint(endpointId);
-    VerifyOrReturnError(cluster != nullptr, CHIP_ERROR_NOT_FOUND);
-    VerifyOrReturnError(cluster->HasLeaderFeature(), CHIP_ERROR_INCORRECT_STATE);
-    
-    auto status = cluster->SetUnionContributorList(contributorList);
-    if (!status.IsSuccess())
-    {
-        ChipLogError(AppServer, "ASU - Failed to set union contributor list on endpoint %u", endpointId);
-        return CHIP_ERROR_INTERNAL;
-    }
-    return CHIP_NO_ERROR;
-}*/

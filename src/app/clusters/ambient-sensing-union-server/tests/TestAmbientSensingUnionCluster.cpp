@@ -277,7 +277,8 @@ TEST_F(TestAmbientSensingUnionCluster, TestSetUnionHealth)
     // Test case: Leader feature enabled
     {
         AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
-                                                .WithFeatures(Feature::kLeader) };
+                                                .WithFeatures(Feature::kLeader)
+                                                .WithUnionHealth(AmbientSensingUnion::UnionHealthEnum::kFullyFunctional)};
         EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
         // Test setting union health
@@ -293,6 +294,10 @@ TEST_F(TestAmbientSensingUnionCluster, TestSetUnionHealth)
         EXPECT_EQ(cluster.SetUnionHealth(AmbientSensingUnion::UnionHealthEnum::kNonFunctional), 
                   Protocols::InteractionModel::Status::Success);
         EXPECT_EQ(cluster.GetUnionHealth(), AmbientSensingUnion::UnionHealthEnum::kNonFunctional);
+
+        // Test setting invalid union health value
+        EXPECT_EQ(cluster.SetUnionHealth(static_cast<AmbientSensingUnion::UnionHealthEnum>(0xFF)), 
+                  Protocols::InteractionModel::Status::ConstraintError);
     }
 }
 
@@ -409,7 +414,6 @@ TEST_F(TestAmbientSensingUnionCluster, TestAttributeListMandatoryOnly)
     ReadOnlyBufferBuilder<DataModel::AttributeEntry> attributes;
     EXPECT_EQ(cluster.Attributes(ConcreteClusterPath(kTestEndpointId, AmbientSensingUnion::Id), attributes), CHIP_NO_ERROR);
 
-    // With the updated XML, there are no mandatory attributes beyond global ones
     ReadOnlyBufferBuilder<DataModel::AttributeEntry> expected;
     AttributeListBuilder listBuilder(expected);
     EXPECT_EQ(listBuilder.Append(Span(AmbientSensingUnion::Attributes::kMandatoryMetadata), {}), CHIP_NO_ERROR);
@@ -427,6 +431,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestAttributeListWithOptionalAttributes)
     AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
                                             .WithUnionName(CharSpan::fromCharString(kTestUnionName))
                                             .WithFeatures(Feature::kLeader)
+                                            .WithUnionHealth(AmbientSensingUnion::UnionHealthEnum::kFullyFunctional)
                                             .WithUnionContributorList(Span<const AmbientSensingUnion::Structs::UnionMemberStruct::Type>(kTestUnionContributorList.data(), kTestUnionContributorList.size())) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
@@ -451,6 +456,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestClusterDelegate)
     AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
                                             .WithUnionName(CharSpan::fromCharString(kTestUnionName))
                                             .WithFeatures(Feature::kLeader)
+                                            .WithUnionHealth(AmbientSensingUnion::UnionHealthEnum::kFullyFunctional)
                                             .WithDelegate(&gTestAmbientSensingUnionDelegate) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
