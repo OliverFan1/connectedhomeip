@@ -40,7 +40,7 @@
 #include "tls-client-management-instance.h"
 
 #include <Options.h>
-#include <ambient-sensing-union-instance.h>
+#include <ambient-sensing-union-delegate-impl.h>
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app/CommandHandler.h>
 #include <app/clusters/diagnostic-logs-server/diagnostic-logs-server.h>

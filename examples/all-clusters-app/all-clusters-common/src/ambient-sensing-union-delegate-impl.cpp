@@ -15,7 +15,7 @@
  *    limitations under the License.
  */
 
-#include "ambient-sensing-union-instance.h"
+#include "ambient-sensing-union-delegate-impl.h"
 
 #include <app/clusters/ambient-sensing-union-server/AmbientSensingUnionCluster.h>
 #include <app/clusters/ambient-sensing-union-server/CodegenIntegration.h>

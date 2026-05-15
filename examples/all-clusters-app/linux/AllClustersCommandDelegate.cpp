@@ -18,7 +18,7 @@
 
 #include "AllClustersCommandDelegate.h"
 
-#include <ambient-sensing-union-instance.h>
+#include <ambient-sensing-union-delegate-impl.h>
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app/EventLogging.h>
 #include <app/clusters/ambient-sensing-union-server/CodegenIntegration.h>
