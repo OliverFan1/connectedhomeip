@@ -229,7 +229,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestReadUnionHealth)
         
         // Add online contributor to get FullyFunctional health
         EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, 
-                  UnionContributorHealthEum::kUnionContributorOnline), CHIP_NO_ERROR);
+                  UnionContributorHealthEnum::kUnionContributorOnline), CHIP_NO_ERROR);
         
         chip::Testing::ClusterTester tester(cluster);
 
@@ -249,9 +249,9 @@ TEST_F(TestAmbientSensingUnionCluster, TestReadUnionHealth)
         
         // Add one online and one offline contributor to get LimitedDegraded health
         EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, 
-                  UnionContributorHealthEum::kUnionContributorOnline), CHIP_NO_ERROR);
+                  UnionContributorHealthEnum::kUnionContributorOnline), CHIP_NO_ERROR);
         EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId2, kContributorEp1, 
-                  UnionContributorHealthEum::kUnionContributorOffline), CHIP_NO_ERROR);
+                  UnionContributorHealthEnum::kUnionContributorOffline), CHIP_NO_ERROR);
         
         chip::Testing::ClusterTester tester(cluster);
 
@@ -397,7 +397,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestAddMatterContributor)
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     // Add a Matter contributor
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEum::kUnionContributorOnline),
+    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
 
     // Verify count
@@ -408,7 +408,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestAddMatterContributor)
     EXPECT_FALSE(mDelegate.mLastContributor.contributorNodeID.IsNull());
     EXPECT_EQ(mDelegate.mLastContributor.contributorNodeID.Value(), kTestNodeId1);
     EXPECT_EQ(mDelegate.mLastContributor.contributorEndpointID.Value(), kContributorEp1);
-    EXPECT_EQ(mDelegate.mLastContributor.contributorHealth, UnionContributorHealthEum::kUnionContributorOnline);
+    EXPECT_EQ(mDelegate.mLastContributor.contributorHealth, UnionContributorHealthEnum::kUnionContributorOnline);
 }
 
 TEST_F(TestAmbientSensingUnionCluster, TestAddMatterContributorDuplicate)
@@ -484,19 +484,19 @@ TEST_F(TestAmbientSensingUnionCluster, TestUpdateMatterContributorHealth)
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     // Add contributor as online
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEum::kUnionContributorOnline),
+    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
 
     mDelegate.Reset();
 
     // Update to offline
     EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1,
-                                                     UnionContributorHealthEum::kUnionContributorOffline),
+                                                     UnionContributorHealthEnum::kUnionContributorOffline),
               CHIP_NO_ERROR);
 
     // Verify delegate was called
     EXPECT_TRUE(mDelegate.mContributorHealthChangedCalled);
-    EXPECT_EQ(mDelegate.mLastContributor.contributorHealth, UnionContributorHealthEum::kUnionContributorOffline);
+    EXPECT_EQ(mDelegate.mLastContributor.contributorHealth, UnionContributorHealthEnum::kUnionContributorOffline);
 }
 
 TEST_F(TestAmbientSensingUnionCluster, TestUpdateMatterContributorHealthSameValue)
@@ -507,14 +507,14 @@ TEST_F(TestAmbientSensingUnionCluster, TestUpdateMatterContributorHealthSameValu
                                             .WithDelegate(&mDelegate) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEum::kUnionContributorOnline),
+    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
 
     mDelegate.Reset();
 
     // Update to same value - should not trigger callback
     EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1,
-                                                     UnionContributorHealthEum::kUnionContributorOnline),
+                                                     UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
 
     EXPECT_FALSE(mDelegate.mContributorHealthChangedCalled);
@@ -528,7 +528,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestUpdateMatterContributorHealthNotFound
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1,
-                                                     UnionContributorHealthEum::kUnionContributorOffline),
+                                                     UnionContributorHealthEnum::kUnionContributorOffline),
               CHIP_ERROR_NOT_FOUND);
 }
 
@@ -547,7 +547,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestAddNonMatterContributor)
     constexpr char kContributorName[] = "ZigbeeSensor1";
 
     EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString(kContributorName),
-                                               UnionContributorHealthEum::kUnionContributorOnline),
+                                               UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
 
     EXPECT_EQ(cluster.GetContributorCount(), 1u);
@@ -567,7 +567,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestAddNonMatterContributorEmptyName)
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     // Per spec: ContributorName is mandatory when NodeID is NULL
-    EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan(), UnionContributorHealthEum::kUnionContributorOnline),
+    EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan(), UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_ERROR_INVALID_ARGUMENT);
 
     EXPECT_EQ(cluster.GetContributorCount(), 0u);
@@ -622,16 +622,16 @@ TEST_F(TestAmbientSensingUnionCluster, TestUpdateNonMatterContributorHealth)
     constexpr char kContributorName[] = "WifiSensor";
 
     EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString(kContributorName),
-                                               UnionContributorHealthEum::kUnionContributorOnline),
+                                               UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
     mDelegate.Reset();
 
     EXPECT_EQ(cluster.UpdateNonMatterContributorHealth(CharSpan::fromCharString(kContributorName),
-                                                        UnionContributorHealthEum::kUnionContributorOffline),
+                                                        UnionContributorHealthEnum::kUnionContributorOffline),
               CHIP_NO_ERROR);
 
     EXPECT_TRUE(mDelegate.mContributorHealthChangedCalled);
-    EXPECT_EQ(mDelegate.mLastContributor.contributorHealth, UnionContributorHealthEum::kUnionContributorOffline);
+    EXPECT_EQ(mDelegate.mLastContributor.contributorHealth, UnionContributorHealthEnum::kUnionContributorOffline);
 }
 
 // =============================================================================
@@ -682,7 +682,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestMaxTotalContributorsBoundary)
         // Use unique NodeId for each contributor
         NodeId nodeId = static_cast<NodeId>(0x1000000000000000ULL + i);
         ASSERT_EQ(cluster.AddMatterContributor(nodeId, kContributorEp1,
-                                               UnionContributorHealthEum::kUnionContributorOnline),
+                                               UnionContributorHealthEnum::kUnionContributorOnline),
                   CHIP_NO_ERROR)
             << "Failed to add Matter contributor " << i;
     }
@@ -695,7 +695,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestMaxTotalContributorsBoundary)
         char name[32];
         snprintf(name, sizeof(name), "Sensor%u", i);
         ASSERT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString(name),
-                                                   UnionContributorHealthEum::kUnionContributorOnline),
+                                                   UnionContributorHealthEnum::kUnionContributorOnline),
                   CHIP_NO_ERROR)
             << "Failed to add non-Matter contributor " << static_cast<int>(i);
     }
@@ -785,9 +785,9 @@ TEST_F(TestAmbientSensingUnionCluster, TestUnionHealthAllOnline)
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     // Add online contributors
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEum::kUnionContributorOnline),
+    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId2, kContributorEp1, UnionContributorHealthEum::kUnionContributorOnline),
+    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId2, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
 
     // Health should be FullyFunctional
@@ -803,9 +803,9 @@ TEST_F(TestAmbientSensingUnionCluster, TestUnionHealthAllOffline)
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     // Add offline contributors
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEum::kUnionContributorOffline),
+    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOffline),
               CHIP_NO_ERROR);
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId2, kContributorEp1, UnionContributorHealthEum::kUnionContributorOffline),
+    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId2, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOffline),
               CHIP_NO_ERROR);
 
     // Health should be NonFunctional
@@ -821,9 +821,9 @@ TEST_F(TestAmbientSensingUnionCluster, TestUnionHealthPartialOffline)
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     // Add mixed contributors
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEum::kUnionContributorOnline),
+    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId2, kContributorEp1, UnionContributorHealthEum::kUnionContributorOffline),
+    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId2, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOffline),
               CHIP_NO_ERROR);
 
     // Health should be LimitedDegraded
@@ -855,27 +855,27 @@ TEST_F(TestAmbientSensingUnionCluster, TestUnionHealthTransitions)
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     // Start with one online contributor
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEum::kUnionContributorOnline),
+    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kFullyFunctional);
 
     // Add offline contributor - becomes degraded
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId2, kContributorEp1, UnionContributorHealthEum::kUnionContributorOffline),
+    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId2, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOffline),
               CHIP_NO_ERROR);
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kLimitedDegraded);
 
     // Make offline contributor online - becomes fully functional
     EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId2, kContributorEp1,
-                                                     UnionContributorHealthEum::kUnionContributorOnline),
+                                                     UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kFullyFunctional);
 
     // Make both offline - becomes non-functional
     EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1,
-                                                     UnionContributorHealthEum::kUnionContributorOffline),
+                                                     UnionContributorHealthEnum::kUnionContributorOffline),
               CHIP_NO_ERROR);
     EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId2, kContributorEp1,
-                                                     UnionContributorHealthEum::kUnionContributorOffline),
+                                                     UnionContributorHealthEnum::kUnionContributorOffline),
               CHIP_NO_ERROR);
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kNonFunctional);
 }
@@ -896,7 +896,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestUnionContributorAddedEvent)
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     // Add a Matter contributor - should generate event
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEum::kUnionContributorOnline),
+    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
 
     // Verify event was generated
@@ -955,7 +955,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestUnionContributorHealthChangedEvent)
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     // Add contributor
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEum::kUnionContributorOnline),
+    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
     
     // Consume the add event
@@ -963,7 +963,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestUnionContributorHealthChangedEvent)
 
     // Update health - should generate event
     EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1,
-                                                     UnionContributorHealthEum::kUnionContributorOffline),
+                                                     UnionContributorHealthEnum::kUnionContributorOffline),
               CHIP_NO_ERROR);
 
     // Verify health changed event was generated
@@ -973,7 +973,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestUnionContributorHealthChangedEvent)
     if (eventInfo.has_value())
     {
         EXPECT_EQ(eventInfo->GetEventData(decodedEvent), CHIP_NO_ERROR);
-        EXPECT_EQ(decodedEvent.contributorHealth.contributorHealth, UnionContributorHealthEum::kUnionContributorOffline);
+        EXPECT_EQ(decodedEvent.contributorHealth.contributorHealth, UnionContributorHealthEnum::kUnionContributorOffline);
     }
 }
 
@@ -1090,7 +1090,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestUnionHealthChangeNotification_OnContr
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     // Add online contributor - will trigger health recalculation
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEum::kUnionContributorOnline),
+    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
 
     // Verify health attribute notification (health changed due to contributor addition)
@@ -1111,12 +1111,12 @@ TEST_F(TestAmbientSensingUnionCluster, TestUnionHealthChangeNotification_OnHealt
 
     // Add an OFFLINE contributor - health stays NonFunctional (0/1 online)
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, 
-              UnionContributorHealthEum::kUnionContributorOffline), CHIP_NO_ERROR);
+              UnionContributorHealthEnum::kUnionContributorOffline), CHIP_NO_ERROR);
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kNonFunctional);
 
     // Now update to ONLINE - health should change to FullyFunctional (1/1 online)
     EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1,
-              UnionContributorHealthEum::kUnionContributorOnline), CHIP_NO_ERROR);
+              UnionContributorHealthEnum::kUnionContributorOnline), CHIP_NO_ERROR);
     
     // Verify health changed
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kFullyFunctional);
@@ -1139,7 +1139,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestContributorListChangeNotification_OnA
         context.ChangeListener().IsDirty({ kTestEndpointId, AmbientSensingUnion::Id, Attributes::UnionContributorList::Id }));
 
     // Add contributor
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEum::kUnionContributorOnline),
+    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
 
     // Verify list is now dirty
@@ -1182,12 +1182,12 @@ TEST_F(TestAmbientSensingUnionCluster, TestContributorListChangeNotification_OnH
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     // Add contributor
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEum::kUnionContributorOnline),
+    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
 
     // Update health
     EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1,
-                                                     UnionContributorHealthEum::kUnionContributorOffline),
+                                                     UnionContributorHealthEnum::kUnionContributorOffline),
               CHIP_NO_ERROR);
 
     // Verify list is dirty after health update (list contains health info)
@@ -1370,7 +1370,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestOperationsWithoutDelegate)
     EXPECT_EQ(cluster.SetUnionName(CharSpan::fromCharString("TestUnion")), CHIP_NO_ERROR);
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1), CHIP_NO_ERROR);
     EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1,
-                                                     UnionContributorHealthEum::kUnionContributorOffline),
+                                                     UnionContributorHealthEnum::kUnionContributorOffline),
               CHIP_NO_ERROR);
     EXPECT_EQ(cluster.RemoveMatterContributor(kTestNodeId1, kContributorEp1), CHIP_NO_ERROR);
 }
@@ -1404,7 +1404,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestWriteReadOnlyContributorList)
     Structs::UnionContributorStruct::Type contributor;
     contributor.contributorNodeID.SetNonNull(kTestNodeId1);
     contributor.contributorEndpointID.SetNonNull(kContributorEp1);
-    contributor.contributorHealth = UnionContributorHealthEum::kUnionContributorOnline;
+    contributor.contributorHealth = UnionContributorHealthEnum::kUnionContributorOnline;
 
     app::DataModel::List<Structs::UnionContributorStruct::Type> contributorList(&contributor, 1);
 
@@ -1456,27 +1456,27 @@ TEST_F(TestAmbientSensingUnionCluster, TestFullWorkflow)
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kNonFunctional);  // Fixed: 0 contributors = NonFunctional
 
     // 2. Add first Matter contributor (online)
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEum::kUnionContributorOnline),
+    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
     EXPECT_EQ(cluster.GetContributorCount(), 1u);
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kFullyFunctional);  // 1 online = FullyFunctional
 
     // 3. Add second Matter contributor (offline)
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId2, kContributorEp1, UnionContributorHealthEum::kUnionContributorOffline),
+    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId2, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOffline),
               CHIP_NO_ERROR);
     EXPECT_EQ(cluster.GetContributorCount(), 2u);
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kLimitedDegraded);  // 1 online, 1 offline = Degraded
 
     // 4. Add non-Matter contributor (online)
     EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString("ZigbeeSensor"),
-                                               UnionContributorHealthEum::kUnionContributorOnline),
+                                               UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
     EXPECT_EQ(cluster.GetContributorCount(), 3u);
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kLimitedDegraded);  // Still degraded (1 offline)
 
     // 5. Bring offline contributor back online
     EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId2, kContributorEp1,
-                                                     UnionContributorHealthEum::kUnionContributorOnline),
+                                                     UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kFullyFunctional);  // All online now
 
@@ -1524,7 +1524,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestConfigurationChaining)
     
     // Add a contributor to show health calculation works
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, 
-              UnionContributorHealthEum::kUnionContributorOnline), CHIP_NO_ERROR);
+              UnionContributorHealthEnum::kUnionContributorOnline), CHIP_NO_ERROR);
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kFullyFunctional);  // 1 online
 }
 

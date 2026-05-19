@@ -414,7 +414,7 @@ void HandleAddAmbientSensingContributor(Json::Value & jsonValue)
 
     EndpointId endpointId            = static_cast<EndpointId>(jsonValue["EndpointId"].asUInt());
     EndpointId contributorEndpointId = static_cast<EndpointId>(jsonValue["ContributorEndpointId"].asUInt());
-    auto health = static_cast<AmbientSensingUnion::UnionContributorHealthEum>(jsonValue["Health"].asUInt());
+    auto health = static_cast<AmbientSensingUnion::UnionContributorHealthEnum>(jsonValue["Health"].asUInt());
 
     auto cluster = AmbientSensingUnion::FindClusterOnEndpoint(endpointId);
     if (cluster == nullptr)
@@ -515,7 +515,7 @@ void HandleAddAmbientSensingNonMatterContributor(Json::Value & jsonValue)
 
     EndpointId endpointId       = static_cast<EndpointId>(jsonValue["EndpointId"].asUInt());
     std::string contributorName = jsonValue["ContributorName"].asString();
-    auto health = static_cast<AmbientSensingUnion::UnionContributorHealthEum>(jsonValue["Health"].asUInt());
+    auto health = static_cast<AmbientSensingUnion::UnionContributorHealthEnum>(jsonValue["Health"].asUInt());
 
     auto cluster = AmbientSensingUnion::FindClusterOnEndpoint(endpointId);
     if (cluster == nullptr)
@@ -601,13 +601,13 @@ void HandleUpdateAmbientSensingContributorHealth(Json::Value & jsonValue)
     uint32_t healthValue = jsonValue["Health"].asUInt();
     
     // Validate health enum value
-    if (healthValue > static_cast<uint32_t>(AmbientSensingUnion::UnionContributorHealthEum::kUnionContributorOffline))
+    if (healthValue > static_cast<uint32_t>(AmbientSensingUnion::UnionContributorHealthEnum::kUnionContributorOffline))
     {
         ChipLogError(NotSpecified, "Invalid Health value: %u", healthValue);
         return;
     }
     
-    auto health = static_cast<AmbientSensingUnion::UnionContributorHealthEum>(healthValue);
+    auto health = static_cast<AmbientSensingUnion::UnionContributorHealthEnum>(healthValue);
 
     auto cluster = AmbientSensingUnion::FindClusterOnEndpoint(endpointId);
     if (cluster == nullptr)
@@ -652,7 +652,7 @@ void HandleUpdateAmbientSensingContributorHealth(Json::Value & jsonValue)
         {
             ChipLogProgress(NotSpecified, "Updated Matter contributor (NodeId: 0x" ChipLogFormatX64 ", Endpoint: %u) health to %s",
                             ChipLogValueX64(nodeId), contributorEndpointId,
-                            health == AmbientSensingUnion::UnionContributorHealthEum::kUnionContributorOnline ? "Online" : "Offline");
+                            health == AmbientSensingUnion::UnionContributorHealthEnum::kUnionContributorOnline ? "Online" : "Offline");
         }
     }
     else if (jsonValue.isMember("ContributorName") && jsonValue["ContributorName"].isString())
@@ -686,7 +686,7 @@ void HandleUpdateAmbientSensingContributorHealth(Json::Value & jsonValue)
         {
             ChipLogProgress(NotSpecified, "Updated non-Matter contributor '%s' health to %s",
                             contributorNameBuffer,
-                            health == AmbientSensingUnion::UnionContributorHealthEum::kUnionContributorOnline ? "Online" : "Offline");
+                            health == AmbientSensingUnion::UnionContributorHealthEnum::kUnionContributorOnline ? "Online" : "Offline");
         }
     }
     else

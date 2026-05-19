@@ -208,7 +208,7 @@ size_t AmbientSensingUnionCluster::GetContributorCount() const
 }
 
 CHIP_ERROR AmbientSensingUnionCluster::AddMatterContributor(NodeId nodeId, EndpointId endpointId,
-                                                             AmbientSensingUnion::UnionContributorHealthEum health)
+                                                             AmbientSensingUnion::UnionContributorHealthEnum health)
 {
     VerifyOrReturnError(mContributorStorage != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
@@ -267,7 +267,7 @@ CHIP_ERROR AmbientSensingUnionCluster::RemoveMatterContributor(NodeId nodeId, En
 }
 
 CHIP_ERROR AmbientSensingUnionCluster::UpdateMatterContributorHealth(NodeId nodeId, EndpointId endpointId,
-                                                                      AmbientSensingUnion::UnionContributorHealthEum health)
+                                                                      AmbientSensingUnion::UnionContributorHealthEnum health)
 {
     VerifyOrReturnError(mContributorStorage != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
@@ -307,7 +307,7 @@ CHIP_ERROR AmbientSensingUnionCluster::UpdateMatterContributorHealth(NodeId node
 }
 
 CHIP_ERROR AmbientSensingUnionCluster::AddNonMatterContributor(const CharSpan & name,
-                                                                AmbientSensingUnion::UnionContributorHealthEum health)
+                                                                AmbientSensingUnion::UnionContributorHealthEnum health)
 {
     VerifyOrReturnError(mContributorStorage != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
@@ -356,7 +356,7 @@ CHIP_ERROR AmbientSensingUnionCluster::RemoveNonMatterContributor(const CharSpan
     memcpy(localNameBuffer, entryName.data(), nameLength);
     localNameBuffer[nameLength] = '\0';
     
-    AmbientSensingUnion::UnionContributorHealthEum entryHealth = entry->mHealth;
+    AmbientSensingUnion::UnionContributorHealthEnum entryHealth = entry->mHealth;
 
     ReturnErrorOnFailure(mContributorStorage->RemoveNonMatterContributor(name));
 
@@ -382,7 +382,7 @@ CHIP_ERROR AmbientSensingUnionCluster::RemoveNonMatterContributor(const CharSpan
 
 
 CHIP_ERROR AmbientSensingUnionCluster::UpdateNonMatterContributorHealth(const CharSpan & name,
-                                                                         AmbientSensingUnion::UnionContributorHealthEum health)
+                                                                         AmbientSensingUnion::UnionContributorHealthEnum health)
 {
     VerifyOrReturnError(mContributorStorage != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
@@ -532,7 +532,7 @@ void AmbientSensingUnionCluster::RecalculateUnionHealth()
 
     // Count online Matter contributors
     CHIP_ERROR err = mContributorStorage->ForEachMatterContributor([&onlineCount](const MatterContributorEntry & entry) {
-        if (entry.mHealth == UnionContributorHealthEum::kUnionContributorOnline)
+        if (entry.mHealth == UnionContributorHealthEnum::kUnionContributorOnline)
         {
             onlineCount++;
         }
@@ -546,7 +546,7 @@ void AmbientSensingUnionCluster::RecalculateUnionHealth()
 
     // Count online non-Matter contributors
     err = mContributorStorage->ForEachNonMatterContributor([&onlineCount](const NonMatterContributorEntry & entry) {
-        if (entry.mHealth == UnionContributorHealthEum::kUnionContributorOnline)
+        if (entry.mHealth == UnionContributorHealthEnum::kUnionContributorOnline)
         {
             onlineCount++;
         }

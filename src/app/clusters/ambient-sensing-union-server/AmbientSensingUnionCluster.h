@@ -107,8 +107,8 @@ struct MatterContributorEntry
 {
     NodeId mNodeId       = kUndefinedNodeId;
     EndpointId mEndpointId = kInvalidEndpointId;
-    AmbientSensingUnion::UnionContributorHealthEum mHealth =
-        AmbientSensingUnion::UnionContributorHealthEum::kUnionContributorOffline;
+    AmbientSensingUnion::UnionContributorHealthEnum mHealth =
+        AmbientSensingUnion::UnionContributorHealthEnum::kUnionContributorOffline;
 
     bool IsValid() const { return mNodeId != kUndefinedNodeId; }
     void Clear() { mNodeId = kUndefinedNodeId; }
@@ -133,8 +133,8 @@ struct NonMatterContributorEntry
 
     char mName[kMaxNameLength + 1] = {0};
     size_t mNameLength             = 0;
-    AmbientSensingUnion::UnionContributorHealthEum mHealth =
-        AmbientSensingUnion::UnionContributorHealthEum::kUnionContributorOffline;
+    AmbientSensingUnion::UnionContributorHealthEnum mHealth =
+        AmbientSensingUnion::UnionContributorHealthEnum::kUnionContributorOffline;
 
     bool IsValid() const { return mNameLength > 0; }
     void Clear() { mNameLength = 0; }
@@ -167,18 +167,18 @@ public:
 
     // Matter contributor operations
     virtual CHIP_ERROR AddMatterContributor(NodeId nodeId, EndpointId endpointId,
-                                            AmbientSensingUnion::UnionContributorHealthEum health) = 0;
+                                            AmbientSensingUnion::UnionContributorHealthEnum health) = 0;
     virtual CHIP_ERROR RemoveMatterContributor(NodeId nodeId, EndpointId endpointId)               = 0;
     virtual CHIP_ERROR UpdateMatterContributorHealth(NodeId nodeId, EndpointId endpointId,
-                                                     AmbientSensingUnion::UnionContributorHealthEum health) = 0;
+                                                     AmbientSensingUnion::UnionContributorHealthEnum health) = 0;
     virtual const MatterContributorEntry * FindMatterContributor(NodeId nodeId, EndpointId endpointId) const = 0;
 
     // Non-Matter contributor operations
     virtual CHIP_ERROR AddNonMatterContributor(const CharSpan & name,
-                                               AmbientSensingUnion::UnionContributorHealthEum health) = 0;
+                                               AmbientSensingUnion::UnionContributorHealthEnum health) = 0;
     virtual CHIP_ERROR RemoveNonMatterContributor(const CharSpan & name)                              = 0;
     virtual CHIP_ERROR UpdateNonMatterContributorHealth(const CharSpan & name,
-                                                        AmbientSensingUnion::UnionContributorHealthEum health) = 0;
+                                                        AmbientSensingUnion::UnionContributorHealthEnum health) = 0;
     virtual const NonMatterContributorEntry * FindNonMatterContributor(const CharSpan & name) const = 0;
 
     // Common operations
@@ -212,7 +212,7 @@ public:
 
     // Matter contributor operations
     CHIP_ERROR AddMatterContributor(NodeId nodeId, EndpointId endpointId,
-                                    AmbientSensingUnion::UnionContributorHealthEum health) override
+                                    AmbientSensingUnion::UnionContributorHealthEnum health) override
     {
         if (FindMatterContributor(nodeId, endpointId) != nullptr)
         {
@@ -243,7 +243,7 @@ public:
     }
 
     CHIP_ERROR UpdateMatterContributorHealth(NodeId nodeId, EndpointId endpointId,
-                                             AmbientSensingUnion::UnionContributorHealthEum health) override
+                                             AmbientSensingUnion::UnionContributorHealthEnum health) override
     {
         MatterContributorEntry * entry = FindMatterContributorMutable(nodeId, endpointId);
         if (entry == nullptr)
@@ -270,7 +270,7 @@ public:
 
     // Non-Matter contributor operations
     CHIP_ERROR AddNonMatterContributor(const CharSpan & name,
-                                       AmbientSensingUnion::UnionContributorHealthEum health) override
+                                       AmbientSensingUnion::UnionContributorHealthEnum health) override
     {
         if (name.empty())
         {
@@ -306,7 +306,7 @@ public:
     }
 
     CHIP_ERROR UpdateNonMatterContributorHealth(const CharSpan & name,
-                                                AmbientSensingUnion::UnionContributorHealthEum health) override
+                                                AmbientSensingUnion::UnionContributorHealthEnum health) override
     {
         NonMatterContributorEntry * entry = FindNonMatterContributorMutable(name);
         if (entry == nullptr)
@@ -503,8 +503,8 @@ public:
      * @return CHIP_ERROR_NO_MEMORY if full, CHIP_ERROR_DUPLICATE_KEY_ID if exists.
      */
     CHIP_ERROR AddMatterContributor(NodeId nodeId, EndpointId endpointId,
-                                    AmbientSensingUnion::UnionContributorHealthEum health =
-                                        AmbientSensingUnion::UnionContributorHealthEum::kUnionContributorOnline);
+                                    AmbientSensingUnion::UnionContributorHealthEnum health =
+                                        AmbientSensingUnion::UnionContributorHealthEnum::kUnionContributorOnline);
 
     /**
      * @brief Removes a Matter contributor from the union.
@@ -522,7 +522,7 @@ public:
      * @return CHIP_ERROR_NOT_FOUND if not found.
      */
     CHIP_ERROR UpdateMatterContributorHealth(NodeId nodeId, EndpointId endpointId,
-                                             AmbientSensingUnion::UnionContributorHealthEum health);
+                                             AmbientSensingUnion::UnionContributorHealthEnum health);
 
     // Non-Matter contributor management (NodeID is null, name is mandatory)
     /**
@@ -532,8 +532,8 @@ public:
      * @return CHIP_ERROR_INVALID_ARGUMENT if name is empty, CHIP_ERROR_NO_MEMORY if full.
      */
     CHIP_ERROR AddNonMatterContributor(const CharSpan & name,
-                                       AmbientSensingUnion::UnionContributorHealthEum health =
-                                           AmbientSensingUnion::UnionContributorHealthEum::kUnionContributorOnline);
+                                       AmbientSensingUnion::UnionContributorHealthEnum health =
+                                           AmbientSensingUnion::UnionContributorHealthEnum::kUnionContributorOnline);
 
     /**
      * @brief Removes a non-Matter contributor from the union.
@@ -549,7 +549,7 @@ public:
      * @return CHIP_ERROR_NOT_FOUND if not found.
      */
     CHIP_ERROR UpdateNonMatterContributorHealth(const CharSpan & name,
-                                                AmbientSensingUnion::UnionContributorHealthEum health);
+                                                AmbientSensingUnion::UnionContributorHealthEnum health);
 
     /**
      * @brief Clears all contributors from the union.

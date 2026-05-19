@@ -95,7 +95,7 @@ public:
 
     void OnContributorHealthChanged(const Structs::UnionContributorStruct::Type & contributor) override
     {
-        const char * healthStr = (contributor.contributorHealth == UnionContributorHealthEum::kUnionContributorOnline)
+        const char * healthStr = (contributor.contributorHealth == UnionContributorHealthEnum::kUnionContributorOnline)
             ? "Online"
             : "Offline";
 
