@@ -150,7 +150,11 @@ CHIP_ERROR AmbientSensingUnionCluster::SetUnionName(const CharSpan & unionName)
     }
 
     mUnionNameLength = unionName.size();
-    memcpy(mUnionNameBuffer, unionName.data(), mUnionNameLength);
+    if (mUnionNameLength > 0)
+    {
+        VerifyOrReturnError(unionName.data() != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
+        memcpy(mUnionNameBuffer, unionName.data(), mUnionNameLength);
+    }
     mUnionNameBuffer[mUnionNameLength] = '\0';
 
     NotifyAttributeChanged(UnionName::Id);
@@ -527,53 +531,71 @@ void AmbientSensingUnionCluster::RecalculateUnionHealth()
         return;
     }
 
-    size_t totalCount  = mContributorStorage->GetTotalContributorCount();
+    const size_t totalCount = mContributorStorage->GetTotalContributorCount();
+
+    // Early exit: no contributors means non-functional
+    if (totalCount == 0)
+    {
+        SetUnionHealth(UnionHealthEnum::kNonFunctional);
+        return;
+    }
+
     size_t onlineCount = 0;
+    bool iterationError = false;
 
     // Count online Matter contributors
-    CHIP_ERROR err = mContributorStorage->ForEachMatterContributor([&onlineCount](const MatterContributorEntry & entry) {
-        if (entry.mHealth == UnionContributorHealthEnum::kUnionContributorOnline)
-        {
-            onlineCount++;
-        }
-        return Loop::Continue;
-    });
+    CHIP_ERROR err = mContributorStorage->ForEachMatterContributor(
+        [&onlineCount](const MatterContributorEntry & entry) {
+            if (entry.mHealth == UnionContributorHealthEnum::kUnionContributorOnline)
+            {
+                onlineCount++;
+            }
+            return Loop::Continue;
+        });
 
     if (err != CHIP_NO_ERROR)
     {
         ChipLogError(Zcl, "AmbientSensingUnion: Error iterating Matter contributors: %" CHIP_ERROR_FORMAT, err.Format());
+        iterationError = true;
     }
 
     // Count online non-Matter contributors
-    err = mContributorStorage->ForEachNonMatterContributor([&onlineCount](const NonMatterContributorEntry & entry) {
-        if (entry.mHealth == UnionContributorHealthEnum::kUnionContributorOnline)
-        {
-            onlineCount++;
-        }
-        return Loop::Continue;
-    });
+    err = mContributorStorage->ForEachNonMatterContributor(
+        [&onlineCount](const NonMatterContributorEntry & entry) {
+            if (entry.mHealth == UnionContributorHealthEnum::kUnionContributorOnline)
+            {
+                onlineCount++;
+            }
+            return Loop::Continue;
+        });
 
     if (err != CHIP_NO_ERROR)
     {
         ChipLogError(Zcl, "AmbientSensingUnion: Error iterating non-Matter contributors: %" CHIP_ERROR_FORMAT, err.Format());
+        iterationError = true;
+    }
+
+    // On iteration error, conservatively report degraded if we have contributors
+    // but couldn't fully determine their state
+    if (iterationError)
+    {
+        ChipLogError(Zcl, "AmbientSensingUnion: Iteration error during health calculation, reporting degraded state");
+        SetUnionHealth(UnionHealthEnum::kLimitedDegraded);
+        return;
     }
 
     // Determine union health based on contributor health
     UnionHealthEnum newHealth;
-    if (totalCount == 0)
+
+    if (onlineCount == 0)
     {
-        // No contributors - non-functional
+        // No contributors online - non-functional
         newHealth = UnionHealthEnum::kNonFunctional;
     }
     else if (onlineCount == totalCount)
     {
         // All contributors online - fully functional
         newHealth = UnionHealthEnum::kFullyFunctional;
-    }
-    else if (onlineCount == 0)
-    {
-        // No contributors online - non-functional
-        newHealth = UnionHealthEnum::kNonFunctional;
     }
     else
     {

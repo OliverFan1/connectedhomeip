@@ -26,6 +26,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <type_traits>
 
 namespace chip {
 namespace app {
@@ -142,7 +143,10 @@ struct NonMatterContributorEntry
     void SetName(const CharSpan & name)
     {
         mNameLength = std::min(name.size(), kMaxNameLength);
-        memcpy(mName, name.data(), mNameLength);
+        if (mNameLength > 0 && name.data() != nullptr)
+        {
+            memcpy(mName, name.data(), mNameLength);
+        }
         mName[mNameLength] = '\0';
     }
 
@@ -159,6 +163,11 @@ struct NonMatterContributorEntry
 
 /**
  * @brief Storage provider interface for contributor list.
+ *
+ * Uses the Non-Virtual Interface (NVI) pattern: public template methods
+ * accept any callable (lambdas, functors) and forward to protected virtual
+ * methods that use plain function pointers — avoiding std::function and
+ * its associated heap allocation overhead on constrained targets.
  */
 class ContributorStorageDelegate
 {
@@ -187,20 +196,81 @@ public:
     virtual size_t GetNonMatterContributorCount() const = 0;
     size_t GetTotalContributorCount() const { return GetMatterContributorCount() + GetNonMatterContributorCount(); }
 
-    // Iteration support for attribute encoding
-    virtual CHIP_ERROR ForEachMatterContributor(
-        std::function<Loop(const MatterContributorEntry &)> callback) const = 0;
-    virtual CHIP_ERROR ForEachNonMatterContributor(
-        std::function<Loop(const NonMatterContributorEntry &)> callback) const = 0;
+    /**
+     * @brief Iterate over all active Matter contributors.
+     *
+     * Accepts any callable with signature: Loop(const MatterContributorEntry &).
+     * The callable's lifetime must span the duration of this synchronous call.
+     *
+     * @tparam Callable A callable type (lambda, functor, etc.).
+     * @param callable The callable to invoke for each active entry.
+     * @return CHIP_NO_ERROR on success.
+     */
+    template <typename Callable>
+    CHIP_ERROR ForEachMatterContributor(Callable && callable) const
+    {
+        using RawCallable = std::remove_reference_t<Callable>;
+        return DoForEachMatterContributor(
+            [](const MatterContributorEntry & entry, void * ctx) -> Loop {
+                return (*static_cast<RawCallable *>(ctx))(entry);
+            },
+            static_cast<void *>(&callable));
+    }
+
+    /**
+     * @brief Iterate over all active non-Matter contributors.
+     *
+     * Accepts any callable with signature: Loop(const NonMatterContributorEntry &).
+     * The callable's lifetime must span the duration of this synchronous call.
+     *
+     * @tparam Callable A callable type (lambda, functor, etc.).
+     * @param callable The callable to invoke for each active entry.
+     * @return CHIP_NO_ERROR on success.
+     */
+    template <typename Callable>
+    CHIP_ERROR ForEachNonMatterContributor(Callable && callable) const
+    {
+        using RawCallable = std::remove_reference_t<Callable>;
+        return DoForEachNonMatterContributor(
+            [](const NonMatterContributorEntry & entry, void * ctx) -> Loop {
+                return (*static_cast<RawCallable *>(ctx))(entry);
+            },
+            static_cast<void *>(&callable));
+    }
+
+protected:
+    /**
+     * @brief Virtual iteration hook for Matter contributors.
+     *
+     * Implementors override this with their storage-specific iteration logic.
+     *
+     * @param callback Non-capturing function pointer invoked per entry.
+     * @param context  Opaque context pointer forwarded to each callback invocation.
+     * @return CHIP_NO_ERROR on success.
+     */
+    virtual CHIP_ERROR DoForEachMatterContributor(
+        Loop (*callback)(const MatterContributorEntry & entry, void * context), void * context) const = 0;
+
+    /**
+     * @brief Virtual iteration hook for non-Matter contributors.
+     *
+     * Implementors override this with their storage-specific iteration logic.
+     *
+     * @param callback Non-capturing function pointer invoked per entry.
+     * @param context  Opaque context pointer forwarded to each callback invocation.
+     * @return CHIP_NO_ERROR on success.
+     */
+    virtual CHIP_ERROR DoForEachNonMatterContributor(
+        Loop (*callback)(const NonMatterContributorEntry & entry, void * context), void * context) const = 0;
 };
 
 /**
  * @brief Default in-memory contributor storage with separate pools for efficiency.
  *
- * @tparam kMaxMatterContributors Maximum number of Matter contributors (common case).
- * @tparam kMaxNonMatterContributors Maximum number of non-Matter contributors (rare case).
+ * @tparam kMaxMatterContributors Maximum number of Matter contributors.
+ * @tparam kMaxNonMatterContributors Maximum number of non-Matter contributors.
  */
-template <size_t kMaxMatterContributors = 32, size_t kMaxNonMatterContributors = 8>
+template <size_t kMaxMatterContributors = 16, size_t kMaxNonMatterContributors = 8>
 class DefaultContributorStorage : public ContributorStorageDelegate
 {
 public:
@@ -341,21 +411,24 @@ public:
     size_t GetMatterContributorCount() const override { return mMatterPool.Allocated(); }
     size_t GetNonMatterContributorCount() const override { return mNonMatterPool.Allocated(); }
 
-    // Iteration support
-    CHIP_ERROR ForEachMatterContributor(
-        std::function<Loop(const MatterContributorEntry &)> callback) const override
+protected:
+    // NVI iteration hooks — bridge from function-pointer interface to template-based ObjectPool
+    CHIP_ERROR DoForEachMatterContributor(
+        Loop (*callback)(const MatterContributorEntry & entry, void * context),
+        void * context) const override
     {
-        mMatterPool.ForEachActiveObject([&](const MatterContributorEntry * entry) {
-            return callback(*entry);
+        mMatterPool.ForEachActiveObject([callback, context](const MatterContributorEntry * entry) -> Loop {
+            return callback(*entry, context);
         });
         return CHIP_NO_ERROR;
     }
 
-    CHIP_ERROR ForEachNonMatterContributor(
-        std::function<Loop(const NonMatterContributorEntry &)> callback) const override
+    CHIP_ERROR DoForEachNonMatterContributor(
+        Loop (*callback)(const NonMatterContributorEntry & entry, void * context),
+        void * context) const override
     {
-        mNonMatterPool.ForEachActiveObject([&](const NonMatterContributorEntry * entry) {
-            return callback(*entry);
+        mNonMatterPool.ForEachActiveObject([callback, context](const NonMatterContributorEntry * entry) -> Loop {
+            return callback(*entry, context);
         });
         return CHIP_NO_ERROR;
     }
