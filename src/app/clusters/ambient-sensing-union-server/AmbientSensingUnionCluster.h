@@ -22,11 +22,10 @@
 #include <lib/core/CHIPError.h>
 #include <lib/core/DataModelTypes.h>
 #include <lib/core/Optional.h>
-#include <lib/support/Pool.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
-#include <type_traits>
 
 namespace chip {
 namespace app {
@@ -35,8 +34,7 @@ namespace Clusters {
 /**
  * @brief Delegate interface for the Ambient Sensing Union cluster.
  *
- * Applications should implement this interface to receive notifications
- * about changes in the ambient sensing union state.
+ * Applications implement this to receive notifications about union state changes.
  */
 class AmbientSensingUnionDelegate
 {
@@ -54,29 +52,12 @@ public:
      * @param unionHealth The new union health state.
      */
     virtual void OnUnionHealthChanged(AmbientSensingUnion::UnionHealthEnum unionHealth) = 0;
-
-    /**
-     * @brief Called when a contributor is added to the union.
-     * @param contributor The contributor that was added.
-     */
-    virtual void OnContributorAdded(const AmbientSensingUnion::Structs::UnionContributorStruct::Type & contributor) = 0;
-
-    /**
-     * @brief Called when a contributor is removed from the union.
-     * @param contributor The contributor that was removed.
-     */
-    virtual void OnContributorRemoved(const AmbientSensingUnion::Structs::UnionContributorStruct::Type & contributor) = 0;
-
-    /**
-     * @brief Called when a contributor's health changes.
-     * @param contributor The contributor whose health changed.
-     */
-    virtual void OnContributorHealthChanged(const AmbientSensingUnion::Structs::UnionContributorStruct::Type & contributor) = 0;
 };
 
 /**
  * @brief Persistence delegate for non-volatile attributes.
  *
+ * Per spec, UnionName has Quality "N" (non-volatile) and must survive reboots.
  */
 class AmbientSensingUnionPersistenceDelegate
 {
@@ -101,379 +82,83 @@ public:
 };
 
 /**
- * @brief Storage for Matter contributors (NodeID is not null).
- *
- */
-struct MatterContributorEntry
-{
-    NodeId mNodeId       = kUndefinedNodeId;
-    EndpointId mEndpointId = kInvalidEndpointId;
-    AmbientSensingUnion::UnionContributorHealthEnum mHealth =
-        AmbientSensingUnion::UnionContributorHealthEnum::kUnionContributorOffline;
-
-    bool IsValid() const { return mNodeId != kUndefinedNodeId; }
-    void Clear() { mNodeId = kUndefinedNodeId; }
-
-    void CopyTo(AmbientSensingUnion::Structs::UnionContributorStruct::Type & dest) const
-    {
-        dest.contributorNodeID.SetNonNull(mNodeId);
-        dest.contributorEndpointID.SetNonNull(mEndpointId);
-        // ContributorName is optional for Matter contributors, leave unset
-        dest.contributorHealth = mHealth;
-    }
-};
-static_assert(sizeof(MatterContributorEntry) <= 16, "MatterContributorEntry should be compact");
-
-/**
- * @brief Storage for non-Matter contributors (NodeID is null).
- *
- */
-struct NonMatterContributorEntry
-{
-    static constexpr size_t kMaxNameLength = 128;
-
-    char mName[kMaxNameLength + 1] = {0};
-    size_t mNameLength             = 0;
-    AmbientSensingUnion::UnionContributorHealthEnum mHealth =
-        AmbientSensingUnion::UnionContributorHealthEnum::kUnionContributorOffline;
-
-    bool IsValid() const { return mNameLength > 0; }
-    void Clear() { mNameLength = 0; }
-
-    void SetName(const CharSpan & name)
-    {
-        mNameLength = std::min(name.size(), kMaxNameLength);
-        if (mNameLength > 0 && name.data() != nullptr)
-        {
-            memcpy(mName, name.data(), mNameLength);
-        }
-        mName[mNameLength] = '\0';
-    }
-
-    CharSpan GetName() const { return CharSpan(mName, mNameLength); }
-
-    void CopyTo(AmbientSensingUnion::Structs::UnionContributorStruct::Type & dest) const
-    {
-        dest.contributorNodeID.SetNull();
-        dest.contributorEndpointID.SetNull();
-        dest.contributorName.SetValue(GetName());
-        dest.contributorHealth = mHealth;
-    }
-};
-
-/**
- * @brief Storage provider interface for contributor list.
- *
- * Uses the Non-Virtual Interface (NVI) pattern: public template methods
- * accept any callable (lambdas, functors) and forward to protected virtual
- * methods that use plain function pointers — avoiding std::function and
- * its associated heap allocation overhead on constrained targets.
- */
-class ContributorStorageDelegate
-{
-public:
-    virtual ~ContributorStorageDelegate() = default;
-
-    // Matter contributor operations
-    virtual CHIP_ERROR AddMatterContributor(NodeId nodeId, EndpointId endpointId,
-                                            AmbientSensingUnion::UnionContributorHealthEnum health) = 0;
-    virtual CHIP_ERROR RemoveMatterContributor(NodeId nodeId, EndpointId endpointId)               = 0;
-    virtual CHIP_ERROR UpdateMatterContributorHealth(NodeId nodeId, EndpointId endpointId,
-                                                     AmbientSensingUnion::UnionContributorHealthEnum health) = 0;
-    virtual const MatterContributorEntry * FindMatterContributor(NodeId nodeId, EndpointId endpointId) const = 0;
-
-    // Non-Matter contributor operations
-    virtual CHIP_ERROR AddNonMatterContributor(const CharSpan & name,
-                                               AmbientSensingUnion::UnionContributorHealthEnum health) = 0;
-    virtual CHIP_ERROR RemoveNonMatterContributor(const CharSpan & name)                              = 0;
-    virtual CHIP_ERROR UpdateNonMatterContributorHealth(const CharSpan & name,
-                                                        AmbientSensingUnion::UnionContributorHealthEnum health) = 0;
-    virtual const NonMatterContributorEntry * FindNonMatterContributor(const CharSpan & name) const = 0;
-
-    // Common operations
-    virtual void ClearAllContributors()          = 0;
-    virtual size_t GetMatterContributorCount() const    = 0;
-    virtual size_t GetNonMatterContributorCount() const = 0;
-    size_t GetTotalContributorCount() const { return GetMatterContributorCount() + GetNonMatterContributorCount(); }
-
-    /**
-     * @brief Iterate over all active Matter contributors.
-     *
-     * Accepts any callable with signature: Loop(const MatterContributorEntry &).
-     * The callable's lifetime must span the duration of this synchronous call.
-     *
-     * @tparam Callable A callable type (lambda, functor, etc.).
-     * @param callable The callable to invoke for each active entry.
-     * @return CHIP_NO_ERROR on success.
-     */
-    template <typename Callable>
-    CHIP_ERROR ForEachMatterContributor(Callable && callable) const
-    {
-        using RawCallable = std::remove_reference_t<Callable>;
-        return DoForEachMatterContributor(
-            [](const MatterContributorEntry & entry, void * ctx) -> Loop {
-                return (*static_cast<RawCallable *>(ctx))(entry);
-            },
-            static_cast<void *>(&callable));
-    }
-
-    /**
-     * @brief Iterate over all active non-Matter contributors.
-     *
-     * Accepts any callable with signature: Loop(const NonMatterContributorEntry &).
-     * The callable's lifetime must span the duration of this synchronous call.
-     *
-     * @tparam Callable A callable type (lambda, functor, etc.).
-     * @param callable The callable to invoke for each active entry.
-     * @return CHIP_NO_ERROR on success.
-     */
-    template <typename Callable>
-    CHIP_ERROR ForEachNonMatterContributor(Callable && callable) const
-    {
-        using RawCallable = std::remove_reference_t<Callable>;
-        return DoForEachNonMatterContributor(
-            [](const NonMatterContributorEntry & entry, void * ctx) -> Loop {
-                return (*static_cast<RawCallable *>(ctx))(entry);
-            },
-            static_cast<void *>(&callable));
-    }
-
-protected:
-    /**
-     * @brief Virtual iteration hook for Matter contributors.
-     *
-     * Implementors override this with their storage-specific iteration logic.
-     *
-     * @param callback Non-capturing function pointer invoked per entry.
-     * @param context  Opaque context pointer forwarded to each callback invocation.
-     * @return CHIP_NO_ERROR on success.
-     */
-    virtual CHIP_ERROR DoForEachMatterContributor(
-        Loop (*callback)(const MatterContributorEntry & entry, void * context), void * context) const = 0;
-
-    /**
-     * @brief Virtual iteration hook for non-Matter contributors.
-     *
-     * Implementors override this with their storage-specific iteration logic.
-     *
-     * @param callback Non-capturing function pointer invoked per entry.
-     * @param context  Opaque context pointer forwarded to each callback invocation.
-     * @return CHIP_NO_ERROR on success.
-     */
-    virtual CHIP_ERROR DoForEachNonMatterContributor(
-        Loop (*callback)(const NonMatterContributorEntry & entry, void * context), void * context) const = 0;
-};
-
-/**
- * @brief Default in-memory contributor storage with separate pools for efficiency.
- *
- * @tparam kMaxMatterContributors Maximum number of Matter contributors.
- * @tparam kMaxNonMatterContributors Maximum number of non-Matter contributors.
- */
-template <size_t kMaxMatterContributors = 16, size_t kMaxNonMatterContributors = 8>
-class DefaultContributorStorage : public ContributorStorageDelegate
-{
-public:
-    static_assert(kMaxMatterContributors + kMaxNonMatterContributors <= 128,
-                  "Total contributors cannot exceed spec limit of 128");
-
-    DefaultContributorStorage()  = default;
-    ~DefaultContributorStorage() override = default;
-
-    // Matter contributor operations
-    CHIP_ERROR AddMatterContributor(NodeId nodeId, EndpointId endpointId,
-                                    AmbientSensingUnion::UnionContributorHealthEnum health) override
-    {
-        if (FindMatterContributor(nodeId, endpointId) != nullptr)
-        {
-            return CHIP_ERROR_DUPLICATE_KEY_ID;
-        }
-
-        MatterContributorEntry * entry = mMatterPool.CreateObject();
-        if (entry == nullptr)
-        {
-            return CHIP_ERROR_NO_MEMORY;
-        }
-
-        entry->mNodeId     = nodeId;
-        entry->mEndpointId = endpointId;
-        entry->mHealth     = health;
-        return CHIP_NO_ERROR;
-    }
-
-    CHIP_ERROR RemoveMatterContributor(NodeId nodeId, EndpointId endpointId) override
-    {
-        MatterContributorEntry * entry = FindMatterContributorMutable(nodeId, endpointId);
-        if (entry == nullptr)
-        {
-            return CHIP_ERROR_NOT_FOUND;
-        }
-        mMatterPool.ReleaseObject(entry);
-        return CHIP_NO_ERROR;
-    }
-
-    CHIP_ERROR UpdateMatterContributorHealth(NodeId nodeId, EndpointId endpointId,
-                                             AmbientSensingUnion::UnionContributorHealthEnum health) override
-    {
-        MatterContributorEntry * entry = FindMatterContributorMutable(nodeId, endpointId);
-        if (entry == nullptr)
-        {
-            return CHIP_ERROR_NOT_FOUND;
-        }
-        entry->mHealth = health;
-        return CHIP_NO_ERROR;
-    }
-
-    const MatterContributorEntry * FindMatterContributor(NodeId nodeId, EndpointId endpointId) const override
-    {
-        const MatterContributorEntry * result = nullptr;
-        mMatterPool.ForEachActiveObject([&](const MatterContributorEntry * entry) {
-            if (entry->mNodeId == nodeId && entry->mEndpointId == endpointId)
-            {
-                result = entry;
-                return Loop::Break;
-            }
-            return Loop::Continue;
-        });
-        return result;
-    }
-
-    // Non-Matter contributor operations
-    CHIP_ERROR AddNonMatterContributor(const CharSpan & name,
-                                       AmbientSensingUnion::UnionContributorHealthEnum health) override
-    {
-        if (name.empty())
-        {
-            // ContributorName is mandatory when NodeID is NULL
-            return CHIP_ERROR_INVALID_ARGUMENT;
-        }
-
-        if (FindNonMatterContributor(name) != nullptr)
-        {
-            return CHIP_ERROR_DUPLICATE_KEY_ID;
-        }
-
-        NonMatterContributorEntry * entry = mNonMatterPool.CreateObject();
-        if (entry == nullptr)
-        {
-            return CHIP_ERROR_NO_MEMORY;
-        }
-
-        entry->SetName(name);
-        entry->mHealth = health;
-        return CHIP_NO_ERROR;
-    }
-
-    CHIP_ERROR RemoveNonMatterContributor(const CharSpan & name) override
-    {
-        NonMatterContributorEntry * entry = FindNonMatterContributorMutable(name);
-        if (entry == nullptr)
-        {
-            return CHIP_ERROR_NOT_FOUND;
-        }
-        mNonMatterPool.ReleaseObject(entry);
-        return CHIP_NO_ERROR;
-    }
-
-    CHIP_ERROR UpdateNonMatterContributorHealth(const CharSpan & name,
-                                                AmbientSensingUnion::UnionContributorHealthEnum health) override
-    {
-        NonMatterContributorEntry * entry = FindNonMatterContributorMutable(name);
-        if (entry == nullptr)
-        {
-            return CHIP_ERROR_NOT_FOUND;
-        }
-        entry->mHealth = health;
-        return CHIP_NO_ERROR;
-    }
-
-    const NonMatterContributorEntry * FindNonMatterContributor(const CharSpan & name) const override
-    {
-        const NonMatterContributorEntry * result = nullptr;
-        mNonMatterPool.ForEachActiveObject([&](const NonMatterContributorEntry * entry) {
-            if (entry->GetName().data_equal(name))
-            {
-                result = entry;
-                return Loop::Break;
-            }
-            return Loop::Continue;
-        });
-        return result;
-    }
-
-    // Common operations
-    void ClearAllContributors() override
-    {
-        mMatterPool.ReleaseAll();
-        mNonMatterPool.ReleaseAll();
-    }
-
-    size_t GetMatterContributorCount() const override { return mMatterPool.Allocated(); }
-    size_t GetNonMatterContributorCount() const override { return mNonMatterPool.Allocated(); }
-
-protected:
-    // NVI iteration hooks — bridge from function-pointer interface to template-based ObjectPool
-    CHIP_ERROR DoForEachMatterContributor(
-        Loop (*callback)(const MatterContributorEntry & entry, void * context),
-        void * context) const override
-    {
-        mMatterPool.ForEachActiveObject([callback, context](const MatterContributorEntry * entry) -> Loop {
-            return callback(*entry, context);
-        });
-        return CHIP_NO_ERROR;
-    }
-
-    CHIP_ERROR DoForEachNonMatterContributor(
-        Loop (*callback)(const NonMatterContributorEntry & entry, void * context),
-        void * context) const override
-    {
-        mNonMatterPool.ForEachActiveObject([callback, context](const NonMatterContributorEntry * entry) -> Loop {
-            return callback(*entry, context);
-        });
-        return CHIP_NO_ERROR;
-    }
-
-private:
-    MatterContributorEntry * FindMatterContributorMutable(NodeId nodeId, EndpointId endpointId)
-    {
-        MatterContributorEntry * result = nullptr;
-        mMatterPool.ForEachActiveObject([&](MatterContributorEntry * entry) {
-            if (entry->mNodeId == nodeId && entry->mEndpointId == endpointId)
-            {
-                result = entry;
-                return Loop::Break;
-            }
-            return Loop::Continue;
-        });
-        return result;
-    }
-
-    NonMatterContributorEntry * FindNonMatterContributorMutable(const CharSpan & name)
-    {
-        NonMatterContributorEntry * result = nullptr;
-        mNonMatterPool.ForEachActiveObject([&](NonMatterContributorEntry * entry) {
-            if (entry->GetName().data_equal(name))
-            {
-                result = entry;
-                return Loop::Break;
-            }
-            return Loop::Continue;
-        });
-        return result;
-    }
-
-    ObjectPool<MatterContributorEntry, kMaxMatterContributors> mMatterPool;
-    ObjectPool<NonMatterContributorEntry, kMaxNonMatterContributors> mNonMatterPool;
-};
-
-/**
  * @brief Server-side implementation of the Ambient Sensing Union cluster.
  *
+ * This cluster provides data modeling for multi-node ambient sensing systems,
+ * allowing a union of sensors to be managed as a cohesive group.
+ *
+ * Per spec (ambient-sensing-union-cluster.xml):
+ * - UnionName: max 128 characters, writable, non-volatile
+ * - UnionHealth: read-only, derived from contributor health states
+ * - UnionContributorList: max 128 entries, read-only
+ * - ContributorName: max 128 characters (for non-Matter contributors)
  */
 class AmbientSensingUnionCluster : public DefaultServerCluster
 {
 public:
-    static constexpr size_t kMaxUnionNameLength = 128;
+    // Spec-defined limits (from ambient-sensing-union-cluster.xml)
+    static constexpr size_t kMaxUnionNameLength       = 128;  // UnionName max length
+    static constexpr size_t kMaxContributorNameLength = 128;  // ContributorName max length
+    static constexpr size_t kMaxContributors          = 128;  // UnionContributorList max entries
+
+    /**
+     * @brief Unified contributor entry supporting both Matter and non-Matter contributors.
+     *
+     * Memory layout optimized for the common case (Matter contributors with no name).
+     */
+    struct ContributorEntry
+    {
+        NodeId nodeId       = kUndefinedNodeId;
+        EndpointId endpointId = kInvalidEndpointId;
+        AmbientSensingUnion::UnionContributorHealthEnum health =
+            AmbientSensingUnion::UnionContributorHealthEnum::kUnionContributorOffline;
+        bool active = false;
+
+        // Name storage for non-Matter contributors (nodeId == kUndefinedNodeId)
+        char name[kMaxContributorNameLength + 1] = {0};
+        size_t nameLength = 0;
+
+        bool IsMatter() const { return nodeId != kUndefinedNodeId; }
+
+        void SetName(const CharSpan & contributorName)
+        {
+            nameLength = std::min(contributorName.size(), kMaxContributorNameLength);
+            if (nameLength > 0 && contributorName.data() != nullptr)
+            {
+                memcpy(name, contributorName.data(), nameLength);
+            }
+            name[nameLength] = '\0';
+        }
+
+        CharSpan GetName() const { return CharSpan(name, nameLength); }
+
+        void Clear()
+        {
+            nodeId     = kUndefinedNodeId;
+            endpointId = kInvalidEndpointId;
+            health     = AmbientSensingUnion::UnionContributorHealthEnum::kUnionContributorOffline;
+            active     = false;
+            nameLength = 0;
+            name[0]    = '\0';
+        }
+
+        void CopyTo(AmbientSensingUnion::Structs::UnionContributorStruct::Type & dest) const
+        {
+            if (IsMatter())
+            {
+                dest.contributorNodeID.SetNonNull(nodeId);
+                dest.contributorEndpointID.SetNonNull(endpointId);
+                // ContributorName is optional for Matter contributors
+            }
+            else
+            {
+                dest.contributorNodeID.SetNull();
+                dest.contributorEndpointID.SetNull();
+                dest.contributorName.SetValue(GetName());
+            }
+            dest.contributorHealth = health;
+        }
+    };
 
     /**
      * @brief Configuration structure for the Ambient Sensing Union cluster.
@@ -488,21 +173,9 @@ public:
             return *this;
         }
 
-        Config & WithUnionHealth(AmbientSensingUnion::UnionHealthEnum unionHealth)
-        {
-            mUnionHealth = unionHealth;
-            return *this;
-        }
-
         Config & WithDelegate(AmbientSensingUnionDelegate * delegate)
         {
             mDelegate = delegate;
-            return *this;
-        }
-
-        Config & WithContributorStorage(ContributorStorageDelegate * storage)
-        {
-            mContributorStorage = storage;
             return *this;
         }
 
@@ -513,11 +186,9 @@ public:
         }
 
         EndpointId mEndpointId;
-        CharSpan mUnionName                                       = CharSpan();
-        AmbientSensingUnion::UnionHealthEnum mUnionHealth         = AmbientSensingUnion::UnionHealthEnum::kFullyFunctional;
-        AmbientSensingUnionDelegate * mDelegate                   = nullptr;
-        ContributorStorageDelegate * mContributorStorage          = nullptr;
-        AmbientSensingUnionPersistenceDelegate * mPersistence     = nullptr;
+        CharSpan mUnionName                                   = CharSpan();
+        AmbientSensingUnionDelegate * mDelegate               = nullptr;
+        AmbientSensingUnionPersistenceDelegate * mPersistence = nullptr;
     };
 
     /**
@@ -542,120 +213,75 @@ public:
                                                  AttributeValueDecoder & decoder) override;
     CHIP_ERROR Attributes(const ConcreteClusterPath & path, ReadOnlyBufferBuilder<DataModel::AttributeEntry> & builder) override;
 
-    /**
-     * @brief Sets the delegate for application callbacks.
-     * @param delegate The delegate to use, or nullptr to clear.
-     */
+    // Delegate management
     void SetDelegate(AmbientSensingUnionDelegate * delegate) { mDelegate = delegate; }
 
     // Attribute setters
-    /**
-     * @brief Sets the union name (will be persisted if persistence delegate is provided).
-     * @param unionName The new union name (max 128 characters).
-     * @return CHIP_ERROR_INVALID_ARGUMENT if name exceeds max length, CHIP_NO_ERROR otherwise.
-     */
     CHIP_ERROR SetUnionName(const CharSpan & unionName);
-
-    /**
-     * @brief Sets the union health state.
-     * @param unionHealth The new union health state.
-     */
-    void SetUnionHealth(AmbientSensingUnion::UnionHealthEnum unionHealth);
 
     // Attribute getters
     CharSpan GetUnionName() const;
-    AmbientSensingUnion::UnionHealthEnum GetUnionHealth() const;
-    size_t GetContributorCount() const;
+    AmbientSensingUnion::UnionHealthEnum GetUnionHealth() const { return mUnionHealth; }
+    size_t GetContributorCount() const { return mContributorCount; }
+
+    // Direct access to contributor array (for iteration)
+    const ContributorEntry * GetContributors() const { return mContributors; }
 
     // Matter contributor management (NodeID is not null)
-    /**
-     * @brief Adds a Matter contributor to the union.
-     * @param nodeId The node ID of the contributor.
-     * @param endpointId The endpoint ID of the contributor.
-     * @param health The initial health state.
-     * @return CHIP_ERROR_NO_MEMORY if full, CHIP_ERROR_DUPLICATE_KEY_ID if exists.
-     */
     CHIP_ERROR AddMatterContributor(NodeId nodeId, EndpointId endpointId,
                                     AmbientSensingUnion::UnionContributorHealthEnum health =
                                         AmbientSensingUnion::UnionContributorHealthEnum::kUnionContributorOnline);
-
-    /**
-     * @brief Removes a Matter contributor from the union.
-     * @param nodeId The node ID of the contributor.
-     * @param endpointId The endpoint ID of the contributor.
-     * @return CHIP_ERROR_NOT_FOUND if not found.
-     */
     CHIP_ERROR RemoveMatterContributor(NodeId nodeId, EndpointId endpointId);
-
-    /**
-     * @brief Updates a Matter contributor's health state.
-     * @param nodeId The node ID of the contributor.
-     * @param endpointId The endpoint ID of the contributor.
-     * @param health The new health state.
-     * @return CHIP_ERROR_NOT_FOUND if not found.
-     */
     CHIP_ERROR UpdateMatterContributorHealth(NodeId nodeId, EndpointId endpointId,
                                              AmbientSensingUnion::UnionContributorHealthEnum health);
 
     // Non-Matter contributor management (NodeID is null, name is mandatory)
-    /**
-     * @brief Adds a non-Matter contributor to the union.
-     * @param name The unique name of the contributor (mandatory per spec).
-     * @param health The initial health state.
-     * @return CHIP_ERROR_INVALID_ARGUMENT if name is empty, CHIP_ERROR_NO_MEMORY if full.
-     */
     CHIP_ERROR AddNonMatterContributor(const CharSpan & name,
                                        AmbientSensingUnion::UnionContributorHealthEnum health =
                                            AmbientSensingUnion::UnionContributorHealthEnum::kUnionContributorOnline);
-
-    /**
-     * @brief Removes a non-Matter contributor from the union.
-     * @param name The name of the contributor.
-     * @return CHIP_ERROR_NOT_FOUND if not found.
-     */
     CHIP_ERROR RemoveNonMatterContributor(const CharSpan & name);
-
-    /**
-     * @brief Updates a non-Matter contributor's health state.
-     * @param name The name of the contributor.
-     * @param health The new health state.
-     * @return CHIP_ERROR_NOT_FOUND if not found.
-     */
     CHIP_ERROR UpdateNonMatterContributorHealth(const CharSpan & name,
                                                 AmbientSensingUnion::UnionContributorHealthEnum health);
 
-    /**
-     * @brief Clears all contributors from the union.
-     */
+    // Clear all contributors
     void ClearAllContributors();
 
 private:
-    // Event emission helpers
-    void EmitUnionContributorAddedEvent(const AmbientSensingUnion::Structs::UnionContributorStruct::Type & contributor);
-    void EmitUnionContributorRemovedEvent(const AmbientSensingUnion::Structs::UnionContributorStruct::Type & contributor);
-    void EmitUnionContributorHealthChangedEvent(const AmbientSensingUnion::Structs::UnionContributorStruct::Type & contributor);
+    // Find contributor by criteria
+    ContributorEntry * FindMatterContributor(NodeId nodeId, EndpointId endpointId);
+    ContributorEntry * FindNonMatterContributor(const CharSpan & name);
+    ContributorEntry * FindFreeSlot();
 
-    // Attribute encoding helpers
+    // Event emission helpers
+    void EmitContributorAddedEvent(const ContributorEntry & entry);
+    void EmitContributorRemovedEvent(const ContributorEntry & entry);
+    void EmitContributorHealthChangedEvent(const ContributorEntry & entry);
+
+    // Attribute encoding
     CHIP_ERROR EncodeContributorList(AttributeValueEncoder & encoder);
 
-    // Helper to recalculate union health based on contributor health states
+    // Health recalculation
     void RecalculateUnionHealth();
 
-    // Persistence helper
+    // Persistence
     CHIP_ERROR LoadPersistedAttributes();
     CHIP_ERROR PersistUnionName();
 
     // Delegates
     AmbientSensingUnionDelegate * mDelegate;
-    ContributorStorageDelegate * mContributorStorage;
     AmbientSensingUnionPersistenceDelegate * mPersistence;
 
     // Attribute storage
     char mUnionNameBuffer[kMaxUnionNameLength + 1];
     size_t mUnionNameLength;
     AmbientSensingUnion::UnionHealthEnum mUnionHealth;
+
+    // Contributor storage (inline, fixed capacity per spec)
+    ContributorEntry mContributors[kMaxContributors];
+    size_t mContributorCount;
 };
 
 } // namespace Clusters
 } // namespace app
 } // namespace chip
+

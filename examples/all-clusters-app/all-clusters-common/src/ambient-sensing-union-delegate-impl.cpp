@@ -61,57 +61,6 @@ public:
         ChipLogProgress(NotSpecified, "AmbientSensingUnion: Union health changed to %s", healthStr);
     }
 
-    void OnContributorAdded(const Structs::UnionContributorStruct::Type & contributor) override
-    {
-        if (!contributor.contributorNodeID.IsNull())
-        {
-            ChipLogProgress(NotSpecified, "AmbientSensingUnion: Matter contributor added - NodeId: 0x" ChipLogFormatX64
-                            ", EndpointId: %u",
-                            ChipLogValueX64(contributor.contributorNodeID.Value()),
-                            contributor.contributorEndpointID.Value());
-        }
-        else if (contributor.contributorName.HasValue())
-        {
-            ChipLogProgress(NotSpecified, "AmbientSensingUnion: Non-Matter contributor added - Name: '%.*s'",
-                            static_cast<int>(contributor.contributorName.Value().size()),
-                            contributor.contributorName.Value().data());
-        }
-    }
-
-    void OnContributorRemoved(const Structs::UnionContributorStruct::Type & contributor) override
-    {
-        if (!contributor.contributorNodeID.IsNull())
-        {
-            ChipLogProgress(NotSpecified, "AmbientSensingUnion: Matter contributor removed - NodeId: 0x" ChipLogFormatX64,
-                            ChipLogValueX64(contributor.contributorNodeID.Value()));
-        }
-        else if (contributor.contributorName.HasValue())
-        {
-            ChipLogProgress(NotSpecified, "AmbientSensingUnion: Non-Matter contributor removed - Name: '%.*s'",
-                            static_cast<int>(contributor.contributorName.Value().size()),
-                            contributor.contributorName.Value().data());
-        }
-    }
-
-    void OnContributorHealthChanged(const Structs::UnionContributorStruct::Type & contributor) override
-    {
-        const char * healthStr = (contributor.contributorHealth == UnionContributorHealthEnum::kUnionContributorOnline)
-            ? "Online"
-            : "Offline";
-
-        if (!contributor.contributorNodeID.IsNull())
-        {
-            ChipLogProgress(NotSpecified, "AmbientSensingUnion: Matter contributor health changed - NodeId: 0x" ChipLogFormatX64
-                            " -> %s",
-                            ChipLogValueX64(contributor.contributorNodeID.Value()), healthStr);
-        }
-        else if (contributor.contributorName.HasValue())
-        {
-            ChipLogProgress(NotSpecified, "AmbientSensingUnion: Non-Matter contributor health changed - Name: '%.*s' -> %s",
-                            static_cast<int>(contributor.contributorName.Value().size()),
-                            contributor.contributorName.Value().data(), healthStr);
-        }
-    }
 };
 
 AllClustersAmbientSensingUnionDelegate gDelegate;

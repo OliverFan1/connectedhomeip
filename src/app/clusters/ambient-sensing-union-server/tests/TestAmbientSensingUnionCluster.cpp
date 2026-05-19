@@ -44,11 +44,8 @@ class TestAmbientSensingUnionDelegate : public AmbientSensingUnionDelegate
 public:
     void Reset()
     {
-        mUnionNameChangedCalled       = false;
-        mUnionHealthChangedCalled     = false;
-        mContributorAddedCalled       = false;
-        mContributorRemovedCalled     = false;
-        mContributorHealthChangedCalled = false;
+        mUnionNameChangedCalled   = false;
+        mUnionHealthChangedCalled = false;
         mLastUnionName.clear();
         mLastUnionHealth = UnionHealthEnum::kFullyFunctional;
     }
@@ -65,32 +62,10 @@ public:
         mLastUnionHealth          = unionHealth;
     }
 
-    void OnContributorAdded(const Structs::UnionContributorStruct::Type & contributor) override
-    {
-        mContributorAddedCalled = true;
-        mLastContributor        = contributor;
-    }
-
-    void OnContributorRemoved(const Structs::UnionContributorStruct::Type & contributor) override
-    {
-        mContributorRemovedCalled = true;
-        mLastContributor          = contributor;
-    }
-
-    void OnContributorHealthChanged(const Structs::UnionContributorStruct::Type & contributor) override
-    {
-        mContributorHealthChangedCalled = true;
-        mLastContributor                = contributor;
-    }
-
-    bool mUnionNameChangedCalled           = false;
-    bool mUnionHealthChangedCalled         = false;
-    bool mContributorAddedCalled           = false;
-    bool mContributorRemovedCalled         = false;
-    bool mContributorHealthChangedCalled   = false;
+    bool mUnionNameChangedCalled   = false;
+    bool mUnionHealthChangedCalled = false;
     std::string mLastUnionName;
     UnionHealthEnum mLastUnionHealth = UnionHealthEnum::kFullyFunctional;
-    Structs::UnionContributorStruct::Type mLastContributor;
 };
 
 // Test persistence delegate
@@ -111,7 +86,7 @@ public:
 
     CHIP_ERROR SaveUnionName(const CharSpan & unionName) override
     {
-        mStoredName   = std::string(unionName.data(), unionName.size());
+        mStoredName    = std::string(unionName.data(), unionName.size());
         mHasStoredName = true;
         mSaveCount++;
         return CHIP_NO_ERROR;
@@ -138,17 +113,10 @@ struct TestAmbientSensingUnionCluster : public ::testing::Test
     {
         mDelegate.Reset();
         mPersistence.Reset();
-        mContributorStorage.ClearAllContributors();
-    }
-
-    void TearDown() override
-    {
-        mContributorStorage.ClearAllContributors();
     }
 
     TestAmbientSensingUnionDelegate mDelegate;
     TestPersistenceDelegate mPersistence;
-    DefaultContributorStorage<32, 8> mContributorStorage;
 };
 
 // =============================================================================
@@ -158,8 +126,7 @@ struct TestAmbientSensingUnionCluster : public ::testing::Test
 TEST_F(TestAmbientSensingUnionCluster, TestReadClusterRevision)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
     chip::Testing::ClusterTester tester(cluster);
 
@@ -171,8 +138,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestReadClusterRevision)
 TEST_F(TestAmbientSensingUnionCluster, TestReadFeatureMap)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
     chip::Testing::ClusterTester tester(cluster);
 
@@ -187,9 +153,8 @@ TEST_F(TestAmbientSensingUnionCluster, TestReadUnionName)
     chip::Testing::TestServerClusterContext context;
     constexpr char kTestName[] = "LivingRoomUnion";
 
-    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
-                                            .WithUnionName(CharSpan::fromCharString(kTestName))
-                                            .WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{
+        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithUnionName(CharSpan::fromCharString(kTestName)) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
     chip::Testing::ClusterTester tester(cluster);
 
@@ -207,30 +172,23 @@ TEST_F(TestAmbientSensingUnionCluster, TestReadUnionHealth)
 
     // Test health with no contributors (NonFunctional)
     {
-        AmbientSensingUnionCluster cluster{
-            AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+        AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
         EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
         chip::Testing::ClusterTester tester(cluster);
 
         UnionHealthEnum health;
         EXPECT_EQ(tester.ReadAttribute(Attributes::UnionHealth::Id, health), CHIP_NO_ERROR);
-        // With 0 contributors, health is NonFunctional
         EXPECT_EQ(health, UnionHealthEnum::kNonFunctional);
     }
 
-    // Clear storage before next test case
-    mContributorStorage.ClearAllContributors();
-
     // Test health with all online contributors (FullyFunctional)
     {
-        AmbientSensingUnionCluster cluster{
-            AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+        AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
         EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
-        
-        // Add online contributor to get FullyFunctional health
-        EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, 
-                  UnionContributorHealthEnum::kUnionContributorOnline), CHIP_NO_ERROR);
-        
+
+        EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
+                  CHIP_NO_ERROR);
+
         chip::Testing::ClusterTester tester(cluster);
 
         UnionHealthEnum health;
@@ -238,21 +196,16 @@ TEST_F(TestAmbientSensingUnionCluster, TestReadUnionHealth)
         EXPECT_EQ(health, UnionHealthEnum::kFullyFunctional);
     }
 
-    // Clear storage before next test case
-    mContributorStorage.ClearAllContributors();
-
     // Test health with mixed online/offline contributors (LimitedDegraded)
     {
-        AmbientSensingUnionCluster cluster{
-            AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+        AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
         EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
-        
-        // Add one online and one offline contributor to get LimitedDegraded health
-        EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, 
-                  UnionContributorHealthEnum::kUnionContributorOnline), CHIP_NO_ERROR);
-        EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId2, kContributorEp1, 
-                  UnionContributorHealthEnum::kUnionContributorOffline), CHIP_NO_ERROR);
-        
+
+        EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
+                  CHIP_NO_ERROR);
+        EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId2, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOffline),
+                  CHIP_NO_ERROR);
+
         chip::Testing::ClusterTester tester(cluster);
 
         UnionHealthEnum health;
@@ -264,8 +217,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestReadUnionHealth)
 TEST_F(TestAmbientSensingUnionCluster, TestReadEmptyContributorList)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     EXPECT_EQ(cluster.GetContributorCount(), 0u);
@@ -278,23 +230,19 @@ TEST_F(TestAmbientSensingUnionCluster, TestReadEmptyContributorList)
 TEST_F(TestAmbientSensingUnionCluster, TestWriteUnionName)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
-                                            .WithContributorStorage(&mContributorStorage)
-                                            .WithDelegate(&mDelegate) };
+    AmbientSensingUnionCluster cluster{
+        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithDelegate(&mDelegate) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
     chip::Testing::ClusterTester tester(cluster);
 
     constexpr char kNewName[] = "BedroomUnion";
 
-    // Write via WriteAttribute
     EXPECT_EQ(tester.WriteAttribute(Attributes::UnionName::Id, CharSpan::fromCharString(kNewName)), CHIP_NO_ERROR);
 
-    // Verify it was written
     CharSpan unionName;
     EXPECT_EQ(tester.ReadAttribute(Attributes::UnionName::Id, unionName), CHIP_NO_ERROR);
     EXPECT_TRUE(unionName.data_equal(CharSpan::fromCharString(kNewName)));
 
-    // Verify delegate was called
     EXPECT_TRUE(mDelegate.mUnionNameChangedCalled);
     EXPECT_EQ(mDelegate.mLastUnionName, kNewName);
 }
@@ -302,9 +250,8 @@ TEST_F(TestAmbientSensingUnionCluster, TestWriteUnionName)
 TEST_F(TestAmbientSensingUnionCluster, TestWriteUnionNameViaSetMethod)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
-                                            .WithContributorStorage(&mContributorStorage)
-                                            .WithDelegate(&mDelegate) };
+    AmbientSensingUnionCluster cluster{
+        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithDelegate(&mDelegate) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     constexpr char kNewName[] = "KitchenUnion";
@@ -321,7 +268,6 @@ TEST_F(TestAmbientSensingUnionCluster, TestWriteUnionNameSameValueNoOp)
 
     AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
                                             .WithUnionName(CharSpan::fromCharString(kTestName))
-                                            .WithContributorStorage(&mContributorStorage)
                                             .WithDelegate(&mDelegate) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
@@ -333,12 +279,11 @@ TEST_F(TestAmbientSensingUnionCluster, TestWriteUnionNameSameValueNoOp)
 TEST_F(TestAmbientSensingUnionCluster, TestWriteUnionNameMaxLength)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
     chip::Testing::ClusterTester tester(cluster);
 
-    // Create a 128-character string (max allowed)
+    // Create a 128-character string (max allowed per spec)
     char maxLengthName[129];
     memset(maxLengthName, 'A', 128);
     maxLengthName[128] = '\0';
@@ -353,8 +298,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestWriteUnionNameMaxLength)
 TEST_F(TestAmbientSensingUnionCluster, TestWriteUnionNameTooLong)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
     chip::Testing::ClusterTester tester(cluster);
 
@@ -370,9 +314,8 @@ TEST_F(TestAmbientSensingUnionCluster, TestWriteUnionNameTooLong)
 TEST_F(TestAmbientSensingUnionCluster, TestWriteUnionNameEmptyString)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
-                                            .WithUnionName(CharSpan::fromCharString("InitialName"))
-                                            .WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{
+        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithUnionName(CharSpan::fromCharString("InitialName")) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
     chip::Testing::ClusterTester tester(cluster);
 
@@ -391,48 +334,33 @@ TEST_F(TestAmbientSensingUnionCluster, TestWriteUnionNameEmptyString)
 TEST_F(TestAmbientSensingUnionCluster, TestAddMatterContributor)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
-                                            .WithContributorStorage(&mContributorStorage)
-                                            .WithDelegate(&mDelegate) };
+    AmbientSensingUnionCluster cluster{
+        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithDelegate(&mDelegate) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // Add a Matter contributor
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
 
-    // Verify count
     EXPECT_EQ(cluster.GetContributorCount(), 1u);
-
-    // Verify delegate was called
-    EXPECT_TRUE(mDelegate.mContributorAddedCalled);
-    EXPECT_FALSE(mDelegate.mLastContributor.contributorNodeID.IsNull());
-    EXPECT_EQ(mDelegate.mLastContributor.contributorNodeID.Value(), kTestNodeId1);
-    EXPECT_EQ(mDelegate.mLastContributor.contributorEndpointID.Value(), kContributorEp1);
-    EXPECT_EQ(mDelegate.mLastContributor.contributorHealth, UnionContributorHealthEnum::kUnionContributorOnline);
+    EXPECT_TRUE(mDelegate.mUnionHealthChangedCalled);
 }
 
 TEST_F(TestAmbientSensingUnionCluster, TestAddMatterContributorDuplicate)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // Add first contributor
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1), CHIP_NO_ERROR);
-
-    // Try to add duplicate
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1), CHIP_ERROR_DUPLICATE_KEY_ID);
 
-    // Count should still be 1
     EXPECT_EQ(cluster.GetContributorCount(), 1u);
 }
 
 TEST_F(TestAmbientSensingUnionCluster, TestAddMultipleMatterContributors)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1), CHIP_NO_ERROR);
@@ -445,31 +373,24 @@ TEST_F(TestAmbientSensingUnionCluster, TestAddMultipleMatterContributors)
 TEST_F(TestAmbientSensingUnionCluster, TestRemoveMatterContributor)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
-                                            .WithContributorStorage(&mContributorStorage)
-                                            .WithDelegate(&mDelegate) };
+    AmbientSensingUnionCluster cluster{
+        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithDelegate(&mDelegate) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // Add and then remove
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1), CHIP_NO_ERROR);
     EXPECT_EQ(cluster.GetContributorCount(), 1u);
 
     mDelegate.Reset();
     EXPECT_EQ(cluster.RemoveMatterContributor(kTestNodeId1, kContributorEp1), CHIP_NO_ERROR);
 
-    // Verify count
     EXPECT_EQ(cluster.GetContributorCount(), 0u);
-
-    // Verify delegate was called
-    EXPECT_TRUE(mDelegate.mContributorRemovedCalled);
-    EXPECT_EQ(mDelegate.mLastContributor.contributorNodeID.Value(), kTestNodeId1);
+    EXPECT_TRUE(mDelegate.mUnionHealthChangedCalled);
 }
 
 TEST_F(TestAmbientSensingUnionCluster, TestRemoveMatterContributorNotFound)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     EXPECT_EQ(cluster.RemoveMatterContributor(kTestNodeId1, kContributorEp1), CHIP_ERROR_NOT_FOUND);
@@ -478,33 +399,28 @@ TEST_F(TestAmbientSensingUnionCluster, TestRemoveMatterContributorNotFound)
 TEST_F(TestAmbientSensingUnionCluster, TestUpdateMatterContributorHealth)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
-                                            .WithContributorStorage(&mContributorStorage)
-                                            .WithDelegate(&mDelegate) };
+    AmbientSensingUnionCluster cluster{
+        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithDelegate(&mDelegate) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // Add contributor as online
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
 
     mDelegate.Reset();
 
-    // Update to offline
-    EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1,
-                                                     UnionContributorHealthEnum::kUnionContributorOffline),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(
+        cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOffline),
+        CHIP_NO_ERROR);
 
-    // Verify delegate was called
-    EXPECT_TRUE(mDelegate.mContributorHealthChangedCalled);
-    EXPECT_EQ(mDelegate.mLastContributor.contributorHealth, UnionContributorHealthEnum::kUnionContributorOffline);
+    EXPECT_TRUE(mDelegate.mUnionHealthChangedCalled);
+    EXPECT_EQ(mDelegate.mLastUnionHealth, UnionHealthEnum::kNonFunctional);
 }
 
 TEST_F(TestAmbientSensingUnionCluster, TestUpdateMatterContributorHealthSameValue)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
-                                            .WithContributorStorage(&mContributorStorage)
-                                            .WithDelegate(&mDelegate) };
+    AmbientSensingUnionCluster cluster{
+        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithDelegate(&mDelegate) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
@@ -512,24 +428,23 @@ TEST_F(TestAmbientSensingUnionCluster, TestUpdateMatterContributorHealthSameValu
 
     mDelegate.Reset();
 
-    // Update to same value - should not trigger callback
-    EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1,
-                                                     UnionContributorHealthEnum::kUnionContributorOnline),
-              CHIP_NO_ERROR);
+    // Update to same value - should not trigger health change callback
+    EXPECT_EQ(
+        cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
+        CHIP_NO_ERROR);
 
-    EXPECT_FALSE(mDelegate.mContributorHealthChangedCalled);
+    EXPECT_FALSE(mDelegate.mUnionHealthChangedCalled);
 }
 
 TEST_F(TestAmbientSensingUnionCluster, TestUpdateMatterContributorHealthNotFound)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1,
-                                                     UnionContributorHealthEnum::kUnionContributorOffline),
-              CHIP_ERROR_NOT_FOUND);
+    EXPECT_EQ(
+        cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOffline),
+        CHIP_ERROR_NOT_FOUND);
 }
 
 // =============================================================================
@@ -539,31 +454,24 @@ TEST_F(TestAmbientSensingUnionCluster, TestUpdateMatterContributorHealthNotFound
 TEST_F(TestAmbientSensingUnionCluster, TestAddNonMatterContributor)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
-                                            .WithContributorStorage(&mContributorStorage)
-                                            .WithDelegate(&mDelegate) };
+    AmbientSensingUnionCluster cluster{
+        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithDelegate(&mDelegate) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     constexpr char kContributorName[] = "ZigbeeSensor1";
 
-    EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString(kContributorName),
-                                               UnionContributorHealthEnum::kUnionContributorOnline),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(
+        cluster.AddNonMatterContributor(CharSpan::fromCharString(kContributorName), UnionContributorHealthEnum::kUnionContributorOnline),
+        CHIP_NO_ERROR);
 
     EXPECT_EQ(cluster.GetContributorCount(), 1u);
-
-    // Verify delegate
-    EXPECT_TRUE(mDelegate.mContributorAddedCalled);
-    EXPECT_TRUE(mDelegate.mLastContributor.contributorNodeID.IsNull());
-    EXPECT_TRUE(mDelegate.mLastContributor.contributorEndpointID.IsNull());
-    EXPECT_TRUE(mDelegate.mLastContributor.contributorName.HasValue());
+    EXPECT_TRUE(mDelegate.mUnionHealthChangedCalled);
 }
 
 TEST_F(TestAmbientSensingUnionCluster, TestAddNonMatterContributorEmptyName)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     // Per spec: ContributorName is mandatory when NodeID is NULL
@@ -576,8 +484,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestAddNonMatterContributorEmptyName)
 TEST_F(TestAmbientSensingUnionCluster, TestAddNonMatterContributorDuplicate)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     constexpr char kContributorName[] = "LegacySensor";
@@ -591,32 +498,30 @@ TEST_F(TestAmbientSensingUnionCluster, TestAddNonMatterContributorDuplicate)
 TEST_F(TestAmbientSensingUnionCluster, TestRemoveNonMatterContributor)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
-                                            .WithContributorStorage(&mContributorStorage)
-                                            .WithDelegate(&mDelegate) };
+    AmbientSensingUnionCluster cluster{
+        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithDelegate(&mDelegate) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     constexpr char kContributorName[] = "BluetoothSensor";
 
     EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString(kContributorName)), CHIP_NO_ERROR);
-    
-    // Consume the add event to free buffer space
+
+    // Consume the add event
     (void) context.EventsGenerator().GetNextEvent();
-    
+
     mDelegate.Reset();
 
     EXPECT_EQ(cluster.RemoveNonMatterContributor(CharSpan::fromCharString(kContributorName)), CHIP_NO_ERROR);
 
     EXPECT_EQ(cluster.GetContributorCount(), 0u);
-    EXPECT_TRUE(mDelegate.mContributorRemovedCalled);
+    EXPECT_TRUE(mDelegate.mUnionHealthChangedCalled);
 }
 
 TEST_F(TestAmbientSensingUnionCluster, TestUpdateNonMatterContributorHealth)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
-                                            .WithContributorStorage(&mContributorStorage)
-                                            .WithDelegate(&mDelegate) };
+    AmbientSensingUnionCluster cluster{
+        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithDelegate(&mDelegate) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     constexpr char kContributorName[] = "WifiSensor";
@@ -630,8 +535,8 @@ TEST_F(TestAmbientSensingUnionCluster, TestUpdateNonMatterContributorHealth)
                                                         UnionContributorHealthEnum::kUnionContributorOffline),
               CHIP_NO_ERROR);
 
-    EXPECT_TRUE(mDelegate.mContributorHealthChangedCalled);
-    EXPECT_EQ(mDelegate.mLastContributor.contributorHealth, UnionContributorHealthEnum::kUnionContributorOffline);
+    EXPECT_TRUE(mDelegate.mUnionHealthChangedCalled);
+    EXPECT_EQ(mDelegate.mLastUnionHealth, UnionHealthEnum::kNonFunctional);
 }
 
 // =============================================================================
@@ -641,8 +546,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestUpdateNonMatterContributorHealth)
 TEST_F(TestAmbientSensingUnionCluster, TestMixedContributors)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     // Add Matter contributors
@@ -664,38 +568,27 @@ TEST_F(TestAmbientSensingUnionCluster, TestMixedContributors)
 // Maximum Contributor Count Boundary Test (128 per spec)
 // =============================================================================
 
-TEST_F(TestAmbientSensingUnionCluster, TestMaxTotalContributorsBoundary)
+TEST_F(TestAmbientSensingUnionCluster, TestMaxContributorsBoundary)
 {
     chip::Testing::TestServerClusterContext context;
-
-    // Create storage with exactly 128 total capacity (spec maximum)
-    // Using 120 Matter + 8 non-Matter to verify both pool types reach capacity
-    DefaultContributorStorage<120, 8> maxCapacityStorage;
-
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&maxCapacityStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // Fill Matter contributor pool (120 contributors)
-    for (uint16_t i = 0; i < 120; i++)
+    // Fill to spec maximum (128 contributors)
+    // Use 100 Matter contributors + 28 non-Matter contributors
+    for (uint16_t i = 0; i < 100; i++)
     {
-        // Use unique NodeId for each contributor
         NodeId nodeId = static_cast<NodeId>(0x1000000000000000ULL + i);
-        ASSERT_EQ(cluster.AddMatterContributor(nodeId, kContributorEp1,
-                                               UnionContributorHealthEnum::kUnionContributorOnline),
+        ASSERT_EQ(cluster.AddMatterContributor(nodeId, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
                   CHIP_NO_ERROR)
             << "Failed to add Matter contributor " << i;
     }
 
-    EXPECT_EQ(cluster.GetContributorCount(), 120u);
-
-    // Fill non-Matter contributor pool (8 contributors)
-    for (uint8_t i = 0; i < 8; i++)
+    for (uint8_t i = 0; i < 28; i++)
     {
         char name[32];
         snprintf(name, sizeof(name), "Sensor%u", i);
-        ASSERT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString(name),
-                                                   UnionContributorHealthEnum::kUnionContributorOnline),
+        ASSERT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString(name), UnionContributorHealthEnum::kUnionContributorOnline),
                   CHIP_NO_ERROR)
             << "Failed to add non-Matter contributor " << static_cast<int>(i);
     }
@@ -706,70 +599,39 @@ TEST_F(TestAmbientSensingUnionCluster, TestMaxTotalContributorsBoundary)
     // Verify health is FullyFunctional with all online contributors
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kFullyFunctional);
 
-#if CHIP_SYSTEM_CONFIG_POOL_USE_HEAP
-    // Heap pools can grow beyond template size - this is platform-dependent behavior
-    // Just verify the operations succeed beyond the static limit
-    NodeId extraNodeId = static_cast<NodeId>(0x2000000000000000ULL);
-    EXPECT_EQ(cluster.AddMatterContributor(extraNodeId, kContributorEp1), CHIP_NO_ERROR);
-    EXPECT_EQ(cluster.GetContributorCount(), 129u);
-
-    EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString("ExtraSensor")), CHIP_NO_ERROR);
-    EXPECT_EQ(cluster.GetContributorCount(), 130u);
-#else
-    // Static pools enforce capacity limits - 129th contributor should fail with NO_MEMORY
-
-    // Attempt to add 121st Matter contributor (exceeds Matter pool capacity)
+    // 129th contributor should fail
     NodeId extraNodeId = static_cast<NodeId>(0x2000000000000000ULL);
     EXPECT_EQ(cluster.AddMatterContributor(extraNodeId, kContributorEp1), CHIP_ERROR_NO_MEMORY);
 
-    // Attempt to add 9th non-Matter contributor (exceeds non-Matter pool capacity)
     EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString("ExtraSensor")), CHIP_ERROR_NO_MEMORY);
 
     // Verify count remains at spec maximum of 128
     EXPECT_EQ(cluster.GetContributorCount(), 128u);
-
-    // Verify health unchanged after failed additions
-    EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kFullyFunctional);
-#endif
-
-    // Cleanup
-    maxCapacityStorage.ClearAllContributors();
 }
 
-TEST_F(TestAmbientSensingUnionCluster, TestContributorPoolsIndependent)
+TEST_F(TestAmbientSensingUnionCluster, TestContributorSlotReuse)
 {
     chip::Testing::TestServerClusterContext context;
-
-    // Small storage to verify pools are independent
-    DefaultContributorStorage<2, 2> smallStorage;
-
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&smallStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // Fill Matter pool
+    // Add and remove contributors, then add new ones to verify slot reuse
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1), CHIP_NO_ERROR);
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId2, kContributorEp1), CHIP_NO_ERROR);
+    EXPECT_EQ(cluster.GetContributorCount(), 2u);
 
-#if !CHIP_SYSTEM_CONFIG_POOL_USE_HEAP
-    // Matter pool full - should fail
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp2), CHIP_ERROR_NO_MEMORY);
-#endif
+    // Remove first contributor
+    EXPECT_EQ(cluster.RemoveMatterContributor(kTestNodeId1, kContributorEp1), CHIP_NO_ERROR);
+    EXPECT_EQ(cluster.GetContributorCount(), 1u);
 
-    // Non-Matter pool should still have capacity (independent pool)
-    EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString("Sensor1")), CHIP_NO_ERROR);
-    EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString("Sensor2")), CHIP_NO_ERROR);
+    // Add new contributor - should reuse the freed slot
+    NodeId newNodeId = 0x9999999999999999ULL;
+    EXPECT_EQ(cluster.AddMatterContributor(newNodeId, kContributorEp1), CHIP_NO_ERROR);
+    EXPECT_EQ(cluster.GetContributorCount(), 2u);
 
-#if !CHIP_SYSTEM_CONFIG_POOL_USE_HEAP
-    // Non-Matter pool now full - should fail
-    EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString("Sensor3")), CHIP_ERROR_NO_MEMORY);
-
-    // Verify total count
-    EXPECT_EQ(cluster.GetContributorCount(), 4u);
-#endif
-
-    // Cleanup
-    smallStorage.ClearAllContributors();
+    // Add non-Matter contributor
+    EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString("NewSensor")), CHIP_NO_ERROR);
+    EXPECT_EQ(cluster.GetContributorCount(), 3u);
 }
 
 // =============================================================================
@@ -779,79 +641,66 @@ TEST_F(TestAmbientSensingUnionCluster, TestContributorPoolsIndependent)
 TEST_F(TestAmbientSensingUnionCluster, TestUnionHealthAllOnline)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
-                                            .WithContributorStorage(&mContributorStorage)
-                                            .WithDelegate(&mDelegate) };
+    AmbientSensingUnionCluster cluster{
+        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithDelegate(&mDelegate) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // Add online contributors
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId2, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
 
-    // Health should be FullyFunctional
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kFullyFunctional);
 }
 
 TEST_F(TestAmbientSensingUnionCluster, TestUnionHealthAllOffline)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
-                                            .WithContributorStorage(&mContributorStorage)
-                                            .WithDelegate(&mDelegate) };
+    AmbientSensingUnionCluster cluster{
+        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithDelegate(&mDelegate) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // Add offline contributors
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOffline),
               CHIP_NO_ERROR);
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId2, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOffline),
               CHIP_NO_ERROR);
 
-    // Health should be NonFunctional
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kNonFunctional);
 }
 
 TEST_F(TestAmbientSensingUnionCluster, TestUnionHealthPartialOffline)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
-                                            .WithContributorStorage(&mContributorStorage)
-                                            .WithDelegate(&mDelegate) };
+    AmbientSensingUnionCluster cluster{
+        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithDelegate(&mDelegate) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // Add mixed contributors
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId2, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOffline),
               CHIP_NO_ERROR);
 
-    // Health should be LimitedDegraded
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kLimitedDegraded);
 }
 
 TEST_F(TestAmbientSensingUnionCluster, TestUnionHealthNoContributors)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
-                                            .WithContributorStorage(&mContributorStorage)
-                                            .WithDelegate(&mDelegate) };
+    AmbientSensingUnionCluster cluster{
+        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithDelegate(&mDelegate) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // Add and then remove contributor
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1), CHIP_NO_ERROR);
     EXPECT_EQ(cluster.RemoveMatterContributor(kTestNodeId1, kContributorEp1), CHIP_NO_ERROR);
 
-    // Health should be NonFunctional with no contributors
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kNonFunctional);
 }
 
 TEST_F(TestAmbientSensingUnionCluster, TestUnionHealthTransitions)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
-                                            .WithContributorStorage(&mContributorStorage)
-                                            .WithDelegate(&mDelegate) };
+    AmbientSensingUnionCluster cluster{
+        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithDelegate(&mDelegate) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     // Start with one online contributor
@@ -865,18 +714,18 @@ TEST_F(TestAmbientSensingUnionCluster, TestUnionHealthTransitions)
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kLimitedDegraded);
 
     // Make offline contributor online - becomes fully functional
-    EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId2, kContributorEp1,
-                                                     UnionContributorHealthEnum::kUnionContributorOnline),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(
+        cluster.UpdateMatterContributorHealth(kTestNodeId2, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
+        CHIP_NO_ERROR);
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kFullyFunctional);
 
     // Make both offline - becomes non-functional
-    EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1,
-                                                     UnionContributorHealthEnum::kUnionContributorOffline),
-              CHIP_NO_ERROR);
-    EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId2, kContributorEp1,
-                                                     UnionContributorHealthEnum::kUnionContributorOffline),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(
+        cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOffline),
+        CHIP_NO_ERROR);
+    EXPECT_EQ(
+        cluster.UpdateMatterContributorHealth(kTestNodeId2, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOffline),
+        CHIP_NO_ERROR);
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kNonFunctional);
 }
 
@@ -887,96 +736,62 @@ TEST_F(TestAmbientSensingUnionCluster, TestUnionHealthTransitions)
 TEST_F(TestAmbientSensingUnionCluster, TestUnionContributorAddedEvent)
 {
     chip::Testing::TestServerClusterContext context;
-
     AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }
-            .WithContributorStorage(&mContributorStorage)
-            .WithDelegate(&mDelegate) };
-
+        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithDelegate(&mDelegate) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // Add a Matter contributor - should generate event
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
 
-    // Verify event was generated
     AmbientSensingUnion::Events::UnionContributorAdded::DecodableType decodedEvent;
     auto eventInfo = context.EventsGenerator().GetNextEvent();
     ASSERT_NE(eventInfo, std::nullopt);
-    if (eventInfo.has_value())
-    {
-        EXPECT_EQ(eventInfo->GetEventData(decodedEvent), CHIP_NO_ERROR);
-        EXPECT_FALSE(decodedEvent.addedContributor.contributorNodeID.IsNull());
-        EXPECT_EQ(decodedEvent.addedContributor.contributorNodeID.Value(), kTestNodeId1);
-    }
+    EXPECT_EQ(eventInfo->GetEventData(decodedEvent), CHIP_NO_ERROR);
+    EXPECT_FALSE(decodedEvent.addedContributor.contributorNodeID.IsNull());
+    EXPECT_EQ(decodedEvent.addedContributor.contributorNodeID.Value(), kTestNodeId1);
 }
 
 TEST_F(TestAmbientSensingUnionCluster, TestUnionContributorRemovedEvent)
 {
     chip::Testing::TestServerClusterContext context;
-
     AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }
-            .WithContributorStorage(&mContributorStorage)
-            .WithDelegate(&mDelegate) };
-
+        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithDelegate(&mDelegate) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // Add contributor
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1), CHIP_NO_ERROR);
-    
-    // Consume the add event
-    (void) context.EventsGenerator().GetNextEvent();
+    (void) context.EventsGenerator().GetNextEvent(); // Consume add event
 
-    // Remove contributor - should generate event
     EXPECT_EQ(cluster.RemoveMatterContributor(kTestNodeId1, kContributorEp1), CHIP_NO_ERROR);
 
-    // Verify remove event was generated
     AmbientSensingUnion::Events::UnionContributorRemoved::DecodableType decodedEvent;
     auto eventInfo = context.EventsGenerator().GetNextEvent();
     ASSERT_NE(eventInfo, std::nullopt);
-    if (eventInfo.has_value())
-    {
-        EXPECT_EQ(eventInfo->GetEventData(decodedEvent), CHIP_NO_ERROR);
-        EXPECT_FALSE(decodedEvent.removedContributor.contributorNodeID.IsNull());
-        EXPECT_EQ(decodedEvent.removedContributor.contributorNodeID.Value(), kTestNodeId1);
-    }
+    EXPECT_EQ(eventInfo->GetEventData(decodedEvent), CHIP_NO_ERROR);
+    EXPECT_FALSE(decodedEvent.removedContributor.contributorNodeID.IsNull());
+    EXPECT_EQ(decodedEvent.removedContributor.contributorNodeID.Value(), kTestNodeId1);
 }
 
 TEST_F(TestAmbientSensingUnionCluster, TestUnionContributorHealthChangedEvent)
 {
     chip::Testing::TestServerClusterContext context;
-
     AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }
-            .WithContributorStorage(&mContributorStorage)
-            .WithDelegate(&mDelegate) };
-
+        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithDelegate(&mDelegate) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // Add contributor
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
-    
-    // Consume the add event
-    (void) context.EventsGenerator().GetNextEvent();
+    (void) context.EventsGenerator().GetNextEvent(); // Consume add event
 
-    // Update health - should generate event
-    EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1,
-                                                     UnionContributorHealthEnum::kUnionContributorOffline),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(
+        cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOffline),
+        CHIP_NO_ERROR);
 
-    // Verify health changed event was generated
     AmbientSensingUnion::Events::UnionContributorHealthChanged::DecodableType decodedEvent;
     auto eventInfo = context.EventsGenerator().GetNextEvent();
     ASSERT_NE(eventInfo, std::nullopt);
-    if (eventInfo.has_value())
-    {
-        EXPECT_EQ(eventInfo->GetEventData(decodedEvent), CHIP_NO_ERROR);
-        EXPECT_EQ(decodedEvent.contributorHealth.contributorHealth, UnionContributorHealthEnum::kUnionContributorOffline);
-    }
+    EXPECT_EQ(eventInfo->GetEventData(decodedEvent), CHIP_NO_ERROR);
+    EXPECT_EQ(decodedEvent.contributorHealth.contributorHealth, UnionContributorHealthEnum::kUnionContributorOffline);
 }
-
 
 // =============================================================================
 // Persistence Tests
@@ -993,11 +808,9 @@ TEST_F(TestAmbientSensingUnionCluster, TestUnionNamePersistence)
     {
         AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
                                                 .WithUnionName(CharSpan::fromCharString(kInitialName))
-                                                .WithContributorStorage(&mContributorStorage)
                                                 .WithPersistence(&mPersistence) };
         EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-        // Update name - should persist
         EXPECT_EQ(cluster.SetUnionName(CharSpan::fromCharString(kNewName)), CHIP_NO_ERROR);
         EXPECT_EQ(mPersistence.mSaveCount, 1);
         EXPECT_EQ(mPersistence.mStoredName, kNewName);
@@ -1007,11 +820,9 @@ TEST_F(TestAmbientSensingUnionCluster, TestUnionNamePersistence)
     {
         AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
                                                 .WithUnionName(CharSpan::fromCharString(kInitialName))
-                                                .WithContributorStorage(&mContributorStorage)
                                                 .WithPersistence(&mPersistence) };
         EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-        // Should have loaded the persisted name, not the config name
         EXPECT_TRUE(cluster.GetUnionName().data_equal(CharSpan::fromCharString(kNewName)));
     }
 }
@@ -1022,13 +833,10 @@ TEST_F(TestAmbientSensingUnionCluster, TestUnionNameNoPersistence)
 
     constexpr char kTestName[] = "TestUnion";
 
-    // Cluster without persistence delegate
-    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
-                                            .WithUnionName(CharSpan::fromCharString(kTestName))
-                                            .WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{
+        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithUnionName(CharSpan::fromCharString(kTestName)) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // Should still work, just won't persist
     EXPECT_EQ(cluster.SetUnionName(CharSpan::fromCharString("NewName")), CHIP_NO_ERROR);
     EXPECT_TRUE(cluster.GetUnionName().data_equal(CharSpan::fromCharString("NewName")));
 }
@@ -1037,23 +845,13 @@ TEST_F(TestAmbientSensingUnionCluster, TestUnionNameNoPersistence)
 // Error Handling Tests
 // =============================================================================
 
-TEST_F(TestAmbientSensingUnionCluster, TestStartupWithoutContributorStorage)
-{
-    chip::Testing::TestServerClusterContext context;
-
-    // Cluster without contributor storage should fail startup
-    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
-    EXPECT_EQ(cluster.Startup(context.Get()), CHIP_ERROR_INVALID_ARGUMENT);
-}
-
 TEST_F(TestAmbientSensingUnionCluster, TestSetUnionNameTooLong)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // Create a 129-character string
+    // Create a 129-character string (exceeds max of 128)
     char tooLongName[130];
     memset(tooLongName, 'A', 129);
     tooLongName[129] = '\0';
@@ -1068,178 +866,97 @@ TEST_F(TestAmbientSensingUnionCluster, TestSetUnionNameTooLong)
 TEST_F(TestAmbientSensingUnionCluster, TestUnionNameChangeNotification)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // Verify attribute is not dirty initially
     EXPECT_FALSE(context.ChangeListener().IsDirty({ kTestEndpointId, AmbientSensingUnion::Id, Attributes::UnionName::Id }));
 
-    // Change name
     EXPECT_EQ(cluster.SetUnionName(CharSpan::fromCharString("NewName")), CHIP_NO_ERROR);
 
-    // Verify attribute is now dirty
     EXPECT_TRUE(context.ChangeListener().IsDirty({ kTestEndpointId, AmbientSensingUnion::Id, Attributes::UnionName::Id }));
 }
 
 TEST_F(TestAmbientSensingUnionCluster, TestUnionHealthChangeNotification_OnContributorAdd)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // Add online contributor - will trigger health recalculation
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
 
-    // Verify health attribute notification (health changed due to contributor addition)
     EXPECT_TRUE(context.ChangeListener().IsDirty({ kTestEndpointId, AmbientSensingUnion::Id, Attributes::UnionHealth::Id }));
 }
-
-TEST_F(TestAmbientSensingUnionCluster, TestUnionHealthChangeNotification_OnHealthUpdate)
-{
-    chip::Testing::TestServerClusterContext context;
-    
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }
-            .WithContributorStorage(&mContributorStorage) };
-    EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
-
-    // Verify initial state - health should be NonFunctional with 0 contributors
-    EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kNonFunctional);
-
-    // Add an OFFLINE contributor - health stays NonFunctional (0/1 online)
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, 
-              UnionContributorHealthEnum::kUnionContributorOffline), CHIP_NO_ERROR);
-    EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kNonFunctional);
-
-    // Now update to ONLINE - health should change to FullyFunctional (1/1 online)
-    EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1,
-              UnionContributorHealthEnum::kUnionContributorOnline), CHIP_NO_ERROR);
-    
-    // Verify health changed
-    EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kFullyFunctional);
-    
-    // Verify health attribute notification was sent
-    EXPECT_TRUE(context.ChangeListener().IsDirty(
-        { kTestEndpointId, AmbientSensingUnion::Id, Attributes::UnionHealth::Id }));
-}
-
 
 TEST_F(TestAmbientSensingUnionCluster, TestContributorListChangeNotification_OnAdd)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // Verify list is not dirty initially
     EXPECT_FALSE(
         context.ChangeListener().IsDirty({ kTestEndpointId, AmbientSensingUnion::Id, Attributes::UnionContributorList::Id }));
 
-    // Add contributor
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
 
-    // Verify list is now dirty
     EXPECT_TRUE(
         context.ChangeListener().IsDirty({ kTestEndpointId, AmbientSensingUnion::Id, Attributes::UnionContributorList::Id }));
 }
 
-TEST_F(TestAmbientSensingUnionCluster, TestContributorListChangeNotification_OnRemove)
+// =============================================================================
+// Read-Only Attribute Write Tests
+// =============================================================================
+
+TEST_F(TestAmbientSensingUnionCluster, TestWriteReadOnlyUnionHealth)
 {
     chip::Testing::TestServerClusterContext context;
-    
-    // Use local storage for this test
-    DefaultContributorStorage<32, 8> localStorage;
-    
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&localStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
+    EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
+    chip::Testing::ClusterTester tester(cluster);
+
+    EXPECT_EQ(tester.WriteAttribute(Attributes::UnionHealth::Id, UnionHealthEnum::kNonFunctional),
+              CHIP_IM_GLOBAL_STATUS(UnsupportedWrite));
+}
+
+TEST_F(TestAmbientSensingUnionCluster, TestWriteReadOnlyContributorList)
+{
+    chip::Testing::TestServerClusterContext context;
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
+    EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
+    chip::Testing::ClusterTester tester(cluster);
+
+    Structs::UnionContributorStruct::Type contributor;
+    contributor.contributorNodeID.SetNonNull(kTestNodeId1);
+    contributor.contributorEndpointID.SetNonNull(kContributorEp1);
+    contributor.contributorHealth = UnionContributorHealthEnum::kUnionContributorOnline;
+
+    app::DataModel::List<Structs::UnionContributorStruct::Type> contributorList(&contributor, 1);
+
+    EXPECT_EQ(tester.WriteAttribute(Attributes::UnionContributorList::Id, contributorList,
+                                    chip::Testing::ListWritingPattern::ReplaceAll),
+              CHIP_IM_GLOBAL_STATUS(UnsupportedWrite));
+}
+
+// =============================================================================
+// Shutdown Tests
+// =============================================================================
+
+TEST_F(TestAmbientSensingUnionCluster, TestShutdown)
+{
+    chip::Testing::TestServerClusterContext context;
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // Add then remove contributor
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1), CHIP_NO_ERROR);
-    EXPECT_EQ(cluster.RemoveMatterContributor(kTestNodeId1, kContributorEp1), CHIP_NO_ERROR);
+    EXPECT_EQ(cluster.SetUnionName(CharSpan::fromCharString("TestUnion")), CHIP_NO_ERROR);
 
-    // Verify list is dirty after remove
-    EXPECT_TRUE(
-        context.ChangeListener().IsDirty({ kTestEndpointId, AmbientSensingUnion::Id, Attributes::UnionContributorList::Id }));
+    // Shutdown should not crash
+    cluster.Shutdown(ClusterShutdownType::kClusterShutdown);
 
-    localStorage.ClearAllContributors();
+    // State should still be accessible
+    EXPECT_EQ(cluster.GetContributorCount(), 1u);
 }
-
-TEST_F(TestAmbientSensingUnionCluster, TestContributorListChangeNotification_OnHealthUpdate)
-{
-    chip::Testing::TestServerClusterContext context;
-    
-    // Use local storage for this test
-    DefaultContributorStorage<32, 8> localStorage;
-    
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&localStorage) };
-		
-    EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
-
-    // Add contributor
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
-              CHIP_NO_ERROR);
-
-    // Update health
-    EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1,
-                                                     UnionContributorHealthEnum::kUnionContributorOffline),
-              CHIP_NO_ERROR);
-
-    // Verify list is dirty after health update (list contains health info)
-    EXPECT_TRUE(
-        context.ChangeListener().IsDirty({ kTestEndpointId, AmbientSensingUnion::Id, Attributes::UnionContributorList::Id }));
-
-    localStorage.ClearAllContributors();
-}
-
-// =============================================================================
-// SetUnionHealth Direct Call Tests
-// =============================================================================
-
-TEST_F(TestAmbientSensingUnionCluster, TestSetUnionHealthDirect)
-{
-    chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
-                                            .WithContributorStorage(&mContributorStorage)
-                                            .WithDelegate(&mDelegate) };
-    EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
-
-    // Direct call to SetUnionHealth
-    cluster.SetUnionHealth(UnionHealthEnum::kLimitedDegraded);
-
-    EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kLimitedDegraded);
-    EXPECT_TRUE(mDelegate.mUnionHealthChangedCalled);
-    EXPECT_EQ(mDelegate.mLastUnionHealth, UnionHealthEnum::kLimitedDegraded);
-}
-
-TEST_F(TestAmbientSensingUnionCluster, TestSetUnionHealthSameValueNoOp)
-{
-    chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
-                                            .WithContributorStorage(&mContributorStorage)
-                                            .WithDelegate(&mDelegate) };
-    EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
-
-    // After Startup(), health is kNonFunctional (0 contributors)
-    // Reset delegate to clear any callbacks from Startup
-    mDelegate.Reset();
-
-    // Get current health state
-    UnionHealthEnum currentHealth = cluster.GetUnionHealth();
-    EXPECT_EQ(currentHealth, UnionHealthEnum::kNonFunctional);
-
-    // Set to SAME value - should NOT trigger delegate
-    cluster.SetUnionHealth(currentHealth);
-
-    // Verify delegate was NOT called
-    EXPECT_FALSE(mDelegate.mUnionHealthChangedCalled);
-}
-
 
 // =============================================================================
 // ClearAllContributors Tests
@@ -1248,82 +965,18 @@ TEST_F(TestAmbientSensingUnionCluster, TestSetUnionHealthSameValueNoOp)
 TEST_F(TestAmbientSensingUnionCluster, TestClearAllContributors)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // Add multiple contributors
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1), CHIP_NO_ERROR);
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId2, kContributorEp1), CHIP_NO_ERROR);
     EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString("Sensor1")), CHIP_NO_ERROR);
     EXPECT_EQ(cluster.GetContributorCount(), 3u);
 
-    // Clear all
     cluster.ClearAllContributors();
 
     EXPECT_EQ(cluster.GetContributorCount(), 0u);
-
-    // Health should be NonFunctional
     EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kNonFunctional);
-}
-
-TEST_F(TestAmbientSensingUnionCluster, TestClearAllContributorsNotification)
-{
-    chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
-    EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
-
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1), CHIP_NO_ERROR);
-
-    cluster.ClearAllContributors();
-
-    // List should be dirty
-    EXPECT_TRUE(
-        context.ChangeListener().IsDirty({ kTestEndpointId, AmbientSensingUnion::Id, Attributes::UnionContributorList::Id }));
-}
-
-// =============================================================================
-// Contributor Storage Capacity Tests
-// =============================================================================
-
-TEST_F(TestAmbientSensingUnionCluster, TestContributorStorageCapacity)
-{
-    chip::Testing::TestServerClusterContext context;
-
-    // Use a small storage for this test
-    DefaultContributorStorage<2, 1> smallStorage;
-
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&smallStorage) };
-    EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
-
-    // Fill Matter contributor capacity
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1), CHIP_NO_ERROR);
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId2, kContributorEp1), CHIP_NO_ERROR);
-
-#if CHIP_SYSTEM_CONFIG_POOL_USE_HEAP
-    // On heap pools, we can still add more - just verify it works
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp2), CHIP_NO_ERROR);
-    EXPECT_EQ(cluster.GetContributorCount(), 3u);
-    
-    EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString("Sensor1")), CHIP_NO_ERROR);
-    EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString("Sensor2")), CHIP_NO_ERROR);
-    EXPECT_EQ(cluster.GetContributorCount(), 5u);
-#else
-    // On static pools, capacity is limited
-    // Third Matter contributor should fail
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp2), CHIP_ERROR_NO_MEMORY);
-
-    // Non-Matter should still work (separate pool)
-    EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString("Sensor1")), CHIP_NO_ERROR);
-
-    // Second non-Matter should fail
-    EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString("Sensor2")), CHIP_ERROR_NO_MEMORY);
-#endif
-    
-    // Clean up
-    smallStorage.ClearAllContributors();
 }
 
 // =============================================================================
@@ -1333,8 +986,7 @@ TEST_F(TestAmbientSensingUnionCluster, TestContributorStorageCapacity)
 TEST_F(TestAmbientSensingUnionCluster, TestNonMatterContributorMaxNameLength)
 {
     chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     // Create max length name (128 chars per spec)
@@ -1342,15 +994,23 @@ TEST_F(TestAmbientSensingUnionCluster, TestNonMatterContributorMaxNameLength)
     memset(maxLengthName, 'X', 128);
     maxLengthName[128] = '\0';
 
-    // Note: Event generation may fail with large names due to test buffer limits
-    // This is expected and doesn't affect functionality
     EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan(maxLengthName, 128)), CHIP_NO_ERROR);
     EXPECT_EQ(cluster.GetContributorCount(), 1u);
+}
 
-    // Verify the name was actually stored correctly
-    const auto* entry = mContributorStorage.FindNonMatterContributor(CharSpan(maxLengthName, 128));
-    EXPECT_NE(entry, nullptr);
-    EXPECT_EQ(entry->GetName().size(), 128u);
+TEST_F(TestAmbientSensingUnionCluster, TestNonMatterContributorNameTooLong)
+{
+    chip::Testing::TestServerClusterContext context;
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
+    EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
+
+    // Create 129-character name (exceeds max of 128)
+    char tooLongName[130];
+    memset(tooLongName, 'X', 129);
+    tooLongName[129] = '\0';
+
+    EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan(tooLongName, 129)), CHIP_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(cluster.GetContributorCount(), 0u);
 }
 
 // =============================================================================
@@ -1361,80 +1021,16 @@ TEST_F(TestAmbientSensingUnionCluster, TestOperationsWithoutDelegate)
 {
     chip::Testing::TestServerClusterContext context;
 
-    // Cluster without delegate - operations should still work
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
     // All operations should succeed without delegate
     EXPECT_EQ(cluster.SetUnionName(CharSpan::fromCharString("TestUnion")), CHIP_NO_ERROR);
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1), CHIP_NO_ERROR);
-    EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1,
-                                                     UnionContributorHealthEnum::kUnionContributorOffline),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(
+        cluster.UpdateMatterContributorHealth(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOffline),
+        CHIP_NO_ERROR);
     EXPECT_EQ(cluster.RemoveMatterContributor(kTestNodeId1, kContributorEp1), CHIP_NO_ERROR);
-}
-
-// =============================================================================
-// Read-Only Attribute Write Tests
-// =============================================================================
-
-TEST_F(TestAmbientSensingUnionCluster, TestWriteReadOnlyUnionHealth)
-{
-    chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
-    EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
-    chip::Testing::ClusterTester tester(cluster);
-
-    // Attempt to write UnionHealth - should fail
-    EXPECT_EQ(tester.WriteAttribute(Attributes::UnionHealth::Id, UnionHealthEnum::kNonFunctional),
-              CHIP_IM_GLOBAL_STATUS(UnsupportedWrite));
-}
-
-TEST_F(TestAmbientSensingUnionCluster, TestWriteReadOnlyContributorList)
-{
-    chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
-    EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
-    chip::Testing::ClusterTester tester(cluster);
-
-    // Create a test contributor struct to attempt writing
-    Structs::UnionContributorStruct::Type contributor;
-    contributor.contributorNodeID.SetNonNull(kTestNodeId1);
-    contributor.contributorEndpointID.SetNonNull(kContributorEp1);
-    contributor.contributorHealth = UnionContributorHealthEnum::kUnionContributorOnline;
-
-    app::DataModel::List<Structs::UnionContributorStruct::Type> contributorList(&contributor, 1);
-
-    // Attempt to write to ContributorList - should fail with UnsupportedWrite
-    EXPECT_EQ(tester.WriteAttribute(Attributes::UnionContributorList::Id, contributorList,
-              chip::Testing::ListWritingPattern::ReplaceAll),
-              CHIP_IM_GLOBAL_STATUS(UnsupportedWrite));
-}
-
-
-// =============================================================================
-// Shutdown Tests
-// =============================================================================
-
-TEST_F(TestAmbientSensingUnionCluster, TestShutdown)
-{
-    chip::Testing::TestServerClusterContext context;
-    AmbientSensingUnionCluster cluster{
-        AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithContributorStorage(&mContributorStorage) };
-    EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
-
-    // Add some state
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1), CHIP_NO_ERROR);
-    EXPECT_EQ(cluster.SetUnionName(CharSpan::fromCharString("TestUnion")), CHIP_NO_ERROR);
-
-    // Shutdown should not crash
-    cluster.Shutdown(ClusterShutdownType::kClusterShutdown);
-
-    // State should still be accessible (shutdown doesn't clear state)
-    EXPECT_EQ(cluster.GetContributorCount(), 1u);
 }
 
 // =============================================================================
@@ -1446,39 +1042,38 @@ TEST_F(TestAmbientSensingUnionCluster, TestFullWorkflow)
     chip::Testing::TestServerClusterContext context;
     AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
                                             .WithUnionName(CharSpan::fromCharString("SmartHomeUnion"))
-                                            .WithContributorStorage(&mContributorStorage)
                                             .WithDelegate(&mDelegate)
                                             .WithPersistence(&mPersistence) };
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // 1. Initial state - health is NonFunctional with 0 contributors
+    // 1. Initial state
     EXPECT_EQ(cluster.GetContributorCount(), 0u);
-    EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kNonFunctional);  // Fixed: 0 contributors = NonFunctional
+    EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kNonFunctional);
 
     // 2. Add first Matter contributor (online)
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
     EXPECT_EQ(cluster.GetContributorCount(), 1u);
-    EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kFullyFunctional);  // 1 online = FullyFunctional
+    EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kFullyFunctional);
 
     // 3. Add second Matter contributor (offline)
     EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId2, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOffline),
               CHIP_NO_ERROR);
     EXPECT_EQ(cluster.GetContributorCount(), 2u);
-    EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kLimitedDegraded);  // 1 online, 1 offline = Degraded
+    EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kLimitedDegraded);
 
     // 4. Add non-Matter contributor (online)
     EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString("ZigbeeSensor"),
                                                UnionContributorHealthEnum::kUnionContributorOnline),
               CHIP_NO_ERROR);
     EXPECT_EQ(cluster.GetContributorCount(), 3u);
-    EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kLimitedDegraded);  // Still degraded (1 offline)
+    EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kLimitedDegraded);
 
     // 5. Bring offline contributor back online
-    EXPECT_EQ(cluster.UpdateMatterContributorHealth(kTestNodeId2, kContributorEp1,
-                                                     UnionContributorHealthEnum::kUnionContributorOnline),
-              CHIP_NO_ERROR);
-    EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kFullyFunctional);  // All online now
+    EXPECT_EQ(
+        cluster.UpdateMatterContributorHealth(kTestNodeId2, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
+        CHIP_NO_ERROR);
+    EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kFullyFunctional);
 
     // 6. Update union name
     EXPECT_EQ(cluster.SetUnionName(CharSpan::fromCharString("UpdatedUnion")), CHIP_NO_ERROR);
@@ -1490,43 +1085,66 @@ TEST_F(TestAmbientSensingUnionCluster, TestFullWorkflow)
     EXPECT_EQ(cluster.GetContributorCount(), 2u);
 
     // 8. Verify events were generated
-    // We should have: 3 adds, 1 health change, 1 remove = at least 5 events
     int eventCount = 0;
     while (context.EventsGenerator().GetNextEvent().has_value())
     {
         eventCount++;
     }
-    EXPECT_GE(eventCount, 5);
+    EXPECT_GE(eventCount, 5); // At least: 3 adds, 1 health change, 1 remove
 }
 
 TEST_F(TestAmbientSensingUnionCluster, TestConfigurationChaining)
 {
     chip::Testing::TestServerClusterContext context;
 
-    // Test that configuration chaining works correctly
     AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId }
                                             .WithUnionName(CharSpan::fromCharString("ChainedConfig"))
-                                            .WithUnionHealth(UnionHealthEnum::kLimitedDegraded)
-                                            .WithContributorStorage(&mContributorStorage)
                                             .WithDelegate(&mDelegate)
                                             .WithPersistence(&mPersistence) };
-    
-    // Before Startup(), config values should be set
+
     EXPECT_TRUE(cluster.GetUnionName().data_equal(CharSpan::fromCharString("ChainedConfig")));
-    // Note: GetUnionHealth() before Startup() would return the configured value,
-    // but this is not a valid state for the cluster
-    
+
     EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
 
-    // After Startup(), name persists but health is recalculated
     EXPECT_TRUE(cluster.GetUnionName().data_equal(CharSpan::fromCharString("ChainedConfig")));
-    EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kNonFunctional);  // 0 contributors
-    
-    // Add a contributor to show health calculation works
-    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, 
-              UnionContributorHealthEnum::kUnionContributorOnline), CHIP_NO_ERROR);
-    EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kFullyFunctional);  // 1 online
+    EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kNonFunctional); // 0 contributors
+
+    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
+              CHIP_NO_ERROR);
+    EXPECT_EQ(cluster.GetUnionHealth(), UnionHealthEnum::kFullyFunctional);
 }
 
+// =============================================================================
+// Direct Contributor Array Access Test
+// =============================================================================
+
+TEST_F(TestAmbientSensingUnionCluster, TestGetContributorsArray)
+{
+    chip::Testing::TestServerClusterContext context;
+    AmbientSensingUnionCluster cluster{ AmbientSensingUnionCluster::Config{ kTestEndpointId } };
+    EXPECT_EQ(cluster.Startup(context.Get()), CHIP_NO_ERROR);
+
+    // Add some contributors
+    EXPECT_EQ(cluster.AddMatterContributor(kTestNodeId1, kContributorEp1, UnionContributorHealthEnum::kUnionContributorOnline),
+              CHIP_NO_ERROR);
+    EXPECT_EQ(cluster.AddNonMatterContributor(CharSpan::fromCharString("TestSensor"), UnionContributorHealthEnum::kUnionContributorOnline),
+              CHIP_NO_ERROR);
+
+    // Access contributor array directly
+    const auto * contributors = cluster.GetContributors();
+    ASSERT_NE(contributors, nullptr);
+
+    // Count active contributors
+    size_t activeCount = 0;
+    for (size_t i = 0; i < AmbientSensingUnionCluster::kMaxContributors; i++)
+    {
+        if (contributors[i].active)
+        {
+            activeCount++;
+        }
+    }
+    EXPECT_EQ(activeCount, 2u);
+}
 
 } // namespace
+

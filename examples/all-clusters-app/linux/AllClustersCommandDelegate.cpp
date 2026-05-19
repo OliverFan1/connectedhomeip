@@ -667,7 +667,7 @@ void HandleUpdateAmbientSensingContributorHealth(Json::Value & jsonValue)
         }
         
         // Validate length against maximum allowed
-        constexpr size_t kMaxNameLength = NonMatterContributorEntry::kMaxNameLength;
+        constexpr size_t kMaxNameLength = AmbientSensingUnionCluster::kMaxContributorNameLength;
         if (contributorNameStr.size() > kMaxNameLength)
         {
             ChipLogError(NotSpecified, "ContributorName too long: %u > %u",

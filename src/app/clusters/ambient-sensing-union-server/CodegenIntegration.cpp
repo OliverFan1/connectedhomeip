@@ -1,7 +1,6 @@
 /*
  *
  *    Copyright (c) 2026 Project CHIP Authors
- *    All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -18,7 +17,6 @@
 
 #include "CodegenIntegration.h"
 
-#include <app-common/zap-generated/attributes/Accessors.h>
 #include <app-common/zap-generated/cluster-objects.h>
 #include <app/clusters/ambient-sensing-union-server/AmbientSensingUnionCluster.h>
 #include <app/static-cluster-config/AmbientSensingUnion.h>
@@ -43,16 +41,11 @@ constexpr size_t kAmbientSensingUnionMaxClusterCount   = kAmbientSensingUnionFix
 
 LazyRegisteredServerCluster<AmbientSensingUnionCluster> gServers[kAmbientSensingUnionMaxClusterCount];
 
-// Default contributor storage for each cluster instance
-// Each instance gets its own storage: 32 Matter contributors + 8 non-Matter contributors
-DefaultContributorStorage<32, 8> gContributorStorage[kAmbientSensingUnionMaxClusterCount];
-
 /**
  * @brief KVS-backed persistence delegate for the UnionName attribute.
  *
  * Per spec, UnionName has Quality "N" (non-volatile) and must survive reboots.
- * Each endpoint gets its own key in the platform Key-Value Store:
- *   "g/asu/<endpointId_hex>/un"
+ * Key format: "g/asu/<endpointId_hex>/un"
  */
 class KvsPersistenceDelegate : public AmbientSensingUnionPersistenceDelegate
 {
@@ -84,9 +77,7 @@ public:
 
         if (unionName.empty())
         {
-            // Delete the key when the name is cleared to reclaim storage
             CHIP_ERROR err = chip::DeviceLayer::PersistedStorage::KeyValueStoreMgr().Delete(key);
-            // Treat "not found" as success — nothing to delete
             if (err == CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND)
             {
                 return CHIP_NO_ERROR;
@@ -94,16 +85,10 @@ public:
             return err;
         }
 
-        return chip::DeviceLayer::PersistedStorage::KeyValueStoreMgr().Put(key, unionName.data(),
-                                                                           unionName.size());
+        return chip::DeviceLayer::PersistedStorage::KeyValueStoreMgr().Put(key, unionName.data(), unionName.size());
     }
 
 private:
-    // Key format: "g/asu/<hex_endpoint>/un"
-    // "g"   = global namespace
-    // "asu" = ambient sensing union
-    // "un"  = union name
-    // Max: "g/asu/FFFF/un" = 14 chars + null
     static constexpr size_t kMaxKeyLength = 32;
 
     void BuildUnionNameKey(char * buffer, size_t bufferSize) const
@@ -114,7 +99,6 @@ private:
     EndpointId mEndpointId = kInvalidEndpointId;
 };
 
-// One persistence delegate per cluster instance
 KvsPersistenceDelegate gPersistenceDelegate[kAmbientSensingUnionMaxClusterCount];
 
 class IntegrationDelegate : public CodegenClusterIntegration::Delegate
@@ -123,19 +107,11 @@ public:
     ServerClusterRegistration & CreateRegistration(EndpointId endpointId, unsigned clusterInstanceIndex,
                                                    uint32_t optionalAttributeBits, uint32_t featureMap) override
     {
-        AmbientSensingUnionCluster::Config config(endpointId);
-
-        // Initialize the persistence delegate for this endpoint
         gPersistenceDelegate[clusterInstanceIndex].SetEndpointId(endpointId);
 
-        // Configure with default values
-        // Per spec: UnionName is writable with max 128 chars, has Quality "N" (non-volatile)
-        // Per spec: UnionHealth defaults to FullyFunctional
-        // Per spec: UnionContributorList starts empty
+        AmbientSensingUnionCluster::Config config(endpointId);
         config.WithUnionName(CharSpan::fromCharString(""))
-            .WithUnionHealth(UnionHealthEnum::kFullyFunctional)
-            .WithContributorStorage(&gContributorStorage[clusterInstanceIndex])
-            .WithPersistence(&gPersistenceDelegate[clusterInstanceIndex]);
+              .WithPersistence(&gPersistenceDelegate[clusterInstanceIndex]);
 
         gServers[clusterInstanceIndex].Create(config);
         return gServers[clusterInstanceIndex].Registration();
@@ -149,7 +125,10 @@ public:
 
     void ReleaseRegistration(unsigned clusterInstanceIndex) override
     {
-        gContributorStorage[clusterInstanceIndex].ClearAllContributors();
+        if (gServers[clusterInstanceIndex].IsConstructed())
+        {
+            gServers[clusterInstanceIndex].Cluster().ClearAllContributors();
+        }
         gServers[clusterInstanceIndex].Destroy();
     }
 };
@@ -166,8 +145,8 @@ void MatterAmbientSensingUnionClusterInitCallback(EndpointId endpointId)
             .clusterId                 = AmbientSensingUnion::Id,
             .fixedClusterInstanceCount = kAmbientSensingUnionFixedClusterCount,
             .maxClusterInstanceCount   = kAmbientSensingUnionMaxClusterCount,
-            .fetchFeatureMap           = false,  // No features defined in spec
-            .fetchOptionalAttributes   = false,  // All attributes are mandatory per spec
+            .fetchFeatureMap           = false,
+            .fetchOptionalAttributes   = false,
         },
         integrationDelegate);
 }
@@ -192,7 +171,7 @@ AmbientSensingUnionCluster * FindClusterOnEndpoint(EndpointId endpointId)
 {
     IntegrationDelegate integrationDelegate;
 
-    ServerClusterInterface * ambientSensingUnion = CodegenClusterIntegration::FindClusterOnEndpoint(
+    ServerClusterInterface * cluster = CodegenClusterIntegration::FindClusterOnEndpoint(
         {
             .endpointId                = endpointId,
             .clusterId                 = AmbientSensingUnion::Id,
@@ -201,12 +180,11 @@ AmbientSensingUnionCluster * FindClusterOnEndpoint(EndpointId endpointId)
         },
         integrationDelegate);
 
-    return static_cast<AmbientSensingUnionCluster *>(ambientSensingUnion);
+    return static_cast<AmbientSensingUnionCluster *>(cluster);
 }
 
 } // namespace chip::app::Clusters::AmbientSensingUnion
 
-// Legacy PluginServer callback stubs
 void MatterAmbientSensingUnionPluginServerInitCallback() {}
 void MatterAmbientSensingUnionPluginServerShutdownCallback() {}
 

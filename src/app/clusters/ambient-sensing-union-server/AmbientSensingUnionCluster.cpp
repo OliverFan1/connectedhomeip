@@ -17,7 +17,6 @@
 #include <app/clusters/ambient-sensing-union-server/AmbientSensingUnionCluster.h>
 
 #include <algorithm>
-#include <app/InteractionModelEngine.h>
 #include <app/server-cluster/AttributeListBuilder.h>
 #include <clusters/AmbientSensingUnion/Attributes.h>
 #include <clusters/AmbientSensingUnion/Events.h>
@@ -34,13 +33,20 @@ using namespace AmbientSensingUnion::Attributes;
 AmbientSensingUnionCluster::AmbientSensingUnionCluster(const Config & config) :
     DefaultServerCluster({ config.mEndpointId, AmbientSensingUnion::Id }),
     mDelegate(config.mDelegate),
-    mContributorStorage(config.mContributorStorage),
     mPersistence(config.mPersistence),
     mUnionNameLength(0),
-    mUnionHealth(config.mUnionHealth)
+    mUnionHealth(UnionHealthEnum::kNonFunctional),
+    mContributorCount(0)
 {
     mUnionNameBuffer[0] = '\0';
 
+    // Initialize contributor array
+    for (size_t i = 0; i < kMaxContributors; i++)
+    {
+        mContributors[i].Clear();
+    }
+
+    // Copy initial union name if provided
     if (!config.mUnionName.empty())
     {
         size_t len = std::min(config.mUnionName.size(), kMaxUnionNameLength);
@@ -54,8 +60,7 @@ CHIP_ERROR AmbientSensingUnionCluster::Startup(ServerClusterContext & context)
 {
     ReturnErrorOnFailure(DefaultServerCluster::Startup(context));
 
-    VerifyOrReturnError(mContributorStorage != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
-
+    // Load persisted attributes if persistence delegate is provided
     if (mPersistence != nullptr)
     {
         CHIP_ERROR err = LoadPersistedAttributes();
@@ -82,7 +87,6 @@ DataModel::ActionReturnStatus AmbientSensingUnionCluster::ReadAttribute(const Da
     switch (request.path.mAttributeId)
     {
     case Attributes::FeatureMap::Id:
-        // No features defined for this cluster in the spec
         return encoder.Encode(static_cast<uint32_t>(0));
 
     case Attributes::ClusterRevision::Id:
@@ -133,8 +137,6 @@ CHIP_ERROR AmbientSensingUnionCluster::Attributes(const ConcreteClusterPath & pa
                                                    ReadOnlyBufferBuilder<DataModel::AttributeEntry> & builder)
 {
     AttributeListBuilder listBuilder(builder);
-    
-    // No optional attributes for this cluster - all attributes are mandatory per spec
     return listBuilder.Append(Span(AmbientSensingUnion::Attributes::kMandatoryMetadata),
                               Span<const AttributeListBuilder::OptionalAttributeEntry>{});
 }
@@ -150,9 +152,8 @@ CHIP_ERROR AmbientSensingUnionCluster::SetUnionName(const CharSpan & unionName)
     }
 
     mUnionNameLength = unionName.size();
-    if (mUnionNameLength > 0)
+    if (mUnionNameLength > 0 && unionName.data() != nullptr)
     {
-        VerifyOrReturnError(unionName.data() != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
         memcpy(mUnionNameBuffer, unionName.data(), mUnionNameLength);
     }
     mUnionNameBuffer[mUnionNameLength] = '\0';
@@ -176,69 +177,84 @@ CHIP_ERROR AmbientSensingUnionCluster::SetUnionName(const CharSpan & unionName)
     return CHIP_NO_ERROR;
 }
 
-void AmbientSensingUnionCluster::SetUnionHealth(AmbientSensingUnion::UnionHealthEnum unionHealth)
-{
-    if (mUnionHealth == unionHealth)
-    {
-        return;
-    }
-
-    mUnionHealth = unionHealth;
-    NotifyAttributeChanged(UnionHealth::Id);
-
-    if (mDelegate != nullptr)
-    {
-        mDelegate->OnUnionHealthChanged(unionHealth);
-    }
-}
-
 CharSpan AmbientSensingUnionCluster::GetUnionName() const
 {
     return CharSpan(mUnionNameBuffer, mUnionNameLength);
 }
 
-AmbientSensingUnion::UnionHealthEnum AmbientSensingUnionCluster::GetUnionHealth() const
+// =============================================================================
+// Contributor Lookup Methods
+// =============================================================================
+
+AmbientSensingUnionCluster::ContributorEntry * AmbientSensingUnionCluster::FindMatterContributor(NodeId nodeId,
+                                                                                                  EndpointId endpointId)
 {
-    return mUnionHealth;
+    for (size_t i = 0; i < kMaxContributors; i++)
+    {
+        if (mContributors[i].active && mContributors[i].IsMatter() &&
+            mContributors[i].nodeId == nodeId && mContributors[i].endpointId == endpointId)
+        {
+            return &mContributors[i];
+        }
+    }
+    return nullptr;
 }
 
-size_t AmbientSensingUnionCluster::GetContributorCount() const
+AmbientSensingUnionCluster::ContributorEntry * AmbientSensingUnionCluster::FindNonMatterContributor(const CharSpan & name)
 {
-    if (mContributorStorage == nullptr)
+    for (size_t i = 0; i < kMaxContributors; i++)
     {
-        return 0;
+        if (mContributors[i].active && !mContributors[i].IsMatter() &&
+            mContributors[i].GetName().data_equal(name))
+        {
+            return &mContributors[i];
+        }
     }
-    return mContributorStorage->GetTotalContributorCount();
+    return nullptr;
 }
+
+AmbientSensingUnionCluster::ContributorEntry * AmbientSensingUnionCluster::FindFreeSlot()
+{
+    for (size_t i = 0; i < kMaxContributors; i++)
+    {
+        if (!mContributors[i].active)
+        {
+            return &mContributors[i];
+        }
+    }
+    return nullptr;
+}
+
+// =============================================================================
+// Matter Contributor Management
+// =============================================================================
 
 CHIP_ERROR AmbientSensingUnionCluster::AddMatterContributor(NodeId nodeId, EndpointId endpointId,
                                                              AmbientSensingUnion::UnionContributorHealthEnum health)
 {
-    VerifyOrReturnError(mContributorStorage != nullptr, CHIP_ERROR_INCORRECT_STATE);
+    // Check for duplicate
+    if (FindMatterContributor(nodeId, endpointId) != nullptr)
+    {
+        return CHIP_ERROR_DUPLICATE_KEY_ID;
+    }
 
-    ReturnErrorOnFailure(mContributorStorage->AddMatterContributor(nodeId, endpointId, health));
-
-    NotifyAttributeChanged(UnionContributorList::Id);
-
-    const MatterContributorEntry * entry = mContributorStorage->FindMatterContributor(nodeId, endpointId);
+    // Find free slot
+    ContributorEntry * entry = FindFreeSlot();
     if (entry == nullptr)
     {
-        // This shouldn't happen since we just added it, but handle defensively
-        ChipLogError(Zcl, "AmbientSensingUnion: Matter entry not found after add");
-        RecalculateUnionHealth();
-        return CHIP_NO_ERROR;
+        return CHIP_ERROR_NO_MEMORY;
     }
 
-    AmbientSensingUnion::Structs::UnionContributorStruct::Type contributor;
-    entry->CopyTo(contributor);
+    // Initialize entry
+    entry->Clear();
+    entry->nodeId     = nodeId;
+    entry->endpointId = endpointId;
+    entry->health     = health;
+    entry->active     = true;
+    mContributorCount++;
 
-    EmitUnionContributorAddedEvent(contributor);
-
-    if (mDelegate != nullptr)
-    {
-        mDelegate->OnContributorAdded(contributor);
-    }
-
+    NotifyAttributeChanged(UnionContributorList::Id);
+    EmitContributorAddedEvent(*entry);
     RecalculateUnionHealth();
 
     return CHIP_NO_ERROR;
@@ -246,25 +262,15 @@ CHIP_ERROR AmbientSensingUnionCluster::AddMatterContributor(NodeId nodeId, Endpo
 
 CHIP_ERROR AmbientSensingUnionCluster::RemoveMatterContributor(NodeId nodeId, EndpointId endpointId)
 {
-    VerifyOrReturnError(mContributorStorage != nullptr, CHIP_ERROR_INCORRECT_STATE);
-
-    const MatterContributorEntry * entry = mContributorStorage->FindMatterContributor(nodeId, endpointId);
+    ContributorEntry * entry = FindMatterContributor(nodeId, endpointId);
     VerifyOrReturnError(entry != nullptr, CHIP_ERROR_NOT_FOUND);
 
-    AmbientSensingUnion::Structs::UnionContributorStruct::Type contributor;
-    entry->CopyTo(contributor);
+    EmitContributorRemovedEvent(*entry);
 
-    ReturnErrorOnFailure(mContributorStorage->RemoveMatterContributor(nodeId, endpointId));
+    entry->Clear();
+    mContributorCount--;
 
     NotifyAttributeChanged(UnionContributorList::Id);
-
-    EmitUnionContributorRemovedEvent(contributor);
-
-    if (mDelegate != nullptr)
-    {
-        mDelegate->OnContributorRemoved(contributor);
-    }
-
     RecalculateUnionHealth();
 
     return CHIP_NO_ERROR;
@@ -273,75 +279,56 @@ CHIP_ERROR AmbientSensingUnionCluster::RemoveMatterContributor(NodeId nodeId, En
 CHIP_ERROR AmbientSensingUnionCluster::UpdateMatterContributorHealth(NodeId nodeId, EndpointId endpointId,
                                                                       AmbientSensingUnion::UnionContributorHealthEnum health)
 {
-    VerifyOrReturnError(mContributorStorage != nullptr, CHIP_ERROR_INCORRECT_STATE);
-
-    const MatterContributorEntry * entry = mContributorStorage->FindMatterContributor(nodeId, endpointId);
+    ContributorEntry * entry = FindMatterContributor(nodeId, endpointId);
     VerifyOrReturnError(entry != nullptr, CHIP_ERROR_NOT_FOUND);
 
-    if (entry->mHealth == health)
+    if (entry->health == health)
     {
         return CHIP_NO_ERROR;
     }
 
-    ReturnErrorOnFailure(mContributorStorage->UpdateMatterContributorHealth(nodeId, endpointId, health));
+    entry->health = health;
 
     NotifyAttributeChanged(UnionContributorList::Id);
-
-    entry = mContributorStorage->FindMatterContributor(nodeId, endpointId);
-    if (entry == nullptr)
-    {
-        ChipLogError(Zcl, "AmbientSensingUnion: Matter entry not found after health update");
-        RecalculateUnionHealth();
-        return CHIP_NO_ERROR;
-    }
-
-    AmbientSensingUnion::Structs::UnionContributorStruct::Type contributor;
-    entry->CopyTo(contributor);
-
-    EmitUnionContributorHealthChangedEvent(contributor);
-
-    if (mDelegate != nullptr)
-    {
-        mDelegate->OnContributorHealthChanged(contributor);
-    }
-
+    EmitContributorHealthChangedEvent(*entry);
     RecalculateUnionHealth();
 
     return CHIP_NO_ERROR;
 }
 
+// =============================================================================
+// Non-Matter Contributor Management
+// =============================================================================
+
 CHIP_ERROR AmbientSensingUnionCluster::AddNonMatterContributor(const CharSpan & name,
                                                                 AmbientSensingUnion::UnionContributorHealthEnum health)
 {
-    VerifyOrReturnError(mContributorStorage != nullptr, CHIP_ERROR_INCORRECT_STATE);
-
     // ContributorName is mandatory when NodeID is NULL
     VerifyOrReturnError(!name.empty(), CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(name.size() <= kMaxContributorNameLength, CHIP_ERROR_INVALID_ARGUMENT);
 
-    VerifyOrReturnError(name.size() <= NonMatterContributorEntry::kMaxNameLength, CHIP_ERROR_INVALID_ARGUMENT);
+    // Check for duplicate
+    if (FindNonMatterContributor(name) != nullptr)
+    {
+        return CHIP_ERROR_DUPLICATE_KEY_ID;
+    }
 
-    ReturnErrorOnFailure(mContributorStorage->AddNonMatterContributor(name, health));
-
-    NotifyAttributeChanged(UnionContributorList::Id);
-
-    const NonMatterContributorEntry * entry = mContributorStorage->FindNonMatterContributor(name);
+    // Find free slot
+    ContributorEntry * entry = FindFreeSlot();
     if (entry == nullptr)
     {
-        ChipLogError(Zcl, "AmbientSensingUnion: Non-Matter entry not found after add");
-        RecalculateUnionHealth();
-        return CHIP_NO_ERROR;
+        return CHIP_ERROR_NO_MEMORY;
     }
 
-    AmbientSensingUnion::Structs::UnionContributorStruct::Type contributor;
-    entry->CopyTo(contributor);
+    // Initialize entry
+    entry->Clear();
+    entry->SetName(name);
+    entry->health = health;
+    entry->active = true;
+    mContributorCount++;
 
-    EmitUnionContributorAddedEvent(contributor);
-
-    if (mDelegate != nullptr)
-    {
-        mDelegate->OnContributorAdded(contributor);
-    }
-
+    NotifyAttributeChanged(UnionContributorList::Id);
+    EmitContributorAddedEvent(*entry);
     RecalculateUnionHealth();
 
     return CHIP_NO_ERROR;
@@ -349,98 +336,67 @@ CHIP_ERROR AmbientSensingUnionCluster::AddNonMatterContributor(const CharSpan & 
 
 CHIP_ERROR AmbientSensingUnionCluster::RemoveNonMatterContributor(const CharSpan & name)
 {
-    VerifyOrReturnError(mContributorStorage != nullptr, CHIP_ERROR_INCORRECT_STATE);
-
-    const NonMatterContributorEntry * entry = mContributorStorage->FindNonMatterContributor(name);
+    ContributorEntry * entry = FindNonMatterContributor(name);
     VerifyOrReturnError(entry != nullptr, CHIP_ERROR_NOT_FOUND);
 
-    char localNameBuffer[NonMatterContributorEntry::kMaxNameLength + 1];
-    CharSpan entryName = entry->GetName();
-    size_t nameLength = std::min(entryName.size(), NonMatterContributorEntry::kMaxNameLength);
-    memcpy(localNameBuffer, entryName.data(), nameLength);
-    localNameBuffer[nameLength] = '\0';
-    
-    AmbientSensingUnion::UnionContributorHealthEnum entryHealth = entry->mHealth;
+    EmitContributorRemovedEvent(*entry);
 
-    ReturnErrorOnFailure(mContributorStorage->RemoveNonMatterContributor(name));
+    entry->Clear();
+    mContributorCount--;
 
     NotifyAttributeChanged(UnionContributorList::Id);
-
-    AmbientSensingUnion::Structs::UnionContributorStruct::Type contributor;
-    contributor.contributorNodeID.SetNull();
-    contributor.contributorEndpointID.SetNull();
-    contributor.contributorName.SetValue(CharSpan(localNameBuffer, nameLength));
-    contributor.contributorHealth = entryHealth;
-
-    EmitUnionContributorRemovedEvent(contributor);
-
-    if (mDelegate != nullptr)
-    {
-        mDelegate->OnContributorRemoved(contributor);
-    }
-
     RecalculateUnionHealth();
 
     return CHIP_NO_ERROR;
 }
-
 
 CHIP_ERROR AmbientSensingUnionCluster::UpdateNonMatterContributorHealth(const CharSpan & name,
                                                                          AmbientSensingUnion::UnionContributorHealthEnum health)
 {
-    VerifyOrReturnError(mContributorStorage != nullptr, CHIP_ERROR_INCORRECT_STATE);
-
-    const NonMatterContributorEntry * entry = mContributorStorage->FindNonMatterContributor(name);
+    ContributorEntry * entry = FindNonMatterContributor(name);
     VerifyOrReturnError(entry != nullptr, CHIP_ERROR_NOT_FOUND);
 
-    if (entry->mHealth == health)
+    if (entry->health == health)
     {
         return CHIP_NO_ERROR;
     }
 
-    ReturnErrorOnFailure(mContributorStorage->UpdateNonMatterContributorHealth(name, health));
+    entry->health = health;
 
     NotifyAttributeChanged(UnionContributorList::Id);
-
-    entry = mContributorStorage->FindNonMatterContributor(name);
-    if (entry == nullptr)
-    {
-        ChipLogError(Zcl, "AmbientSensingUnion: Non-Matter entry not found after health update");
-        RecalculateUnionHealth();
-        return CHIP_NO_ERROR;
-    }
-
-    AmbientSensingUnion::Structs::UnionContributorStruct::Type contributor;
-    entry->CopyTo(contributor);
-
-    EmitUnionContributorHealthChangedEvent(contributor);
-
-    if (mDelegate != nullptr)
-    {
-        mDelegate->OnContributorHealthChanged(contributor);
-    }
-
+    EmitContributorHealthChangedEvent(*entry);
     RecalculateUnionHealth();
 
     return CHIP_NO_ERROR;
 }
 
+// =============================================================================
+// Clear All Contributors
+// =============================================================================
+
 void AmbientSensingUnionCluster::ClearAllContributors()
 {
-    if (mContributorStorage == nullptr)
+    // Emit remove events for all active contributors
+    for (size_t i = 0; i < kMaxContributors; i++)
     {
-        return;
+        if (mContributors[i].active)
+        {
+            EmitContributorRemovedEvent(mContributors[i]);
+            mContributors[i].Clear();
+        }
     }
 
-    mContributorStorage->ClearAllContributors();
+    mContributorCount = 0;
 
     NotifyAttributeChanged(UnionContributorList::Id);
-
     RecalculateUnionHealth();
 }
 
-void AmbientSensingUnionCluster::EmitUnionContributorAddedEvent(
-    const AmbientSensingUnion::Structs::UnionContributorStruct::Type & contributor)
+// =============================================================================
+// Event Emission
+// =============================================================================
+
+void AmbientSensingUnionCluster::EmitContributorAddedEvent(const ContributorEntry & entry)
 {
     if (mContext == nullptr)
     {
@@ -448,14 +404,12 @@ void AmbientSensingUnionCluster::EmitUnionContributorAddedEvent(
     }
 
     Events::UnionContributorAdded::Type event;
-    event.addedContributor = contributor;
+    entry.CopyTo(event.addedContributor);
 
-    // GenerateEvent returns std::optional<EventNumber>, ignore return value
     mContext->interactionContext.eventsGenerator.GenerateEvent(event, mPath.mEndpointId);
 }
 
-void AmbientSensingUnionCluster::EmitUnionContributorRemovedEvent(
-    const AmbientSensingUnion::Structs::UnionContributorStruct::Type & contributor)
+void AmbientSensingUnionCluster::EmitContributorRemovedEvent(const ContributorEntry & entry)
 {
     if (mContext == nullptr)
     {
@@ -463,13 +417,12 @@ void AmbientSensingUnionCluster::EmitUnionContributorRemovedEvent(
     }
 
     Events::UnionContributorRemoved::Type event;
-    event.removedContributor = contributor;
+    entry.CopyTo(event.removedContributor);
 
     mContext->interactionContext.eventsGenerator.GenerateEvent(event, mPath.mEndpointId);
 }
 
-void AmbientSensingUnionCluster::EmitUnionContributorHealthChangedEvent(
-    const AmbientSensingUnion::Structs::UnionContributorStruct::Type & contributor)
+void AmbientSensingUnionCluster::EmitContributorHealthChangedEvent(const ContributorEntry & entry)
 {
     if (mContext == nullptr)
     {
@@ -477,134 +430,83 @@ void AmbientSensingUnionCluster::EmitUnionContributorHealthChangedEvent(
     }
 
     Events::UnionContributorHealthChanged::Type event;
-    event.contributorHealth = contributor;
+    entry.CopyTo(event.contributorHealth);
 
     mContext->interactionContext.eventsGenerator.GenerateEvent(event, mPath.mEndpointId);
 }
 
+// =============================================================================
+// Attribute Encoding
+// =============================================================================
+
 CHIP_ERROR AmbientSensingUnionCluster::EncodeContributorList(AttributeValueEncoder & encoder)
 {
-    if (mContributorStorage == nullptr)
-    {
-        // Encode empty list
-        return encoder.EncodeList([](const auto & listEncoder) { return CHIP_NO_ERROR; });
-    }
-
     return encoder.EncodeList([this](const auto & listEncoder) {
-        // Encode Matter contributors first
-        CHIP_ERROR err = mContributorStorage->ForEachMatterContributor([&listEncoder](const MatterContributorEntry & entry) {
-            AmbientSensingUnion::Structs::UnionContributorStruct::Type contributor;
-            entry.CopyTo(contributor);
-
-            CHIP_ERROR encodeErr = listEncoder.Encode(contributor);
-            if (encodeErr != CHIP_NO_ERROR)
+        for (size_t i = 0; i < kMaxContributors; i++)
+        {
+            if (mContributors[i].active)
             {
-                return Loop::Break;
+                AmbientSensingUnion::Structs::UnionContributorStruct::Type contributor;
+                mContributors[i].CopyTo(contributor);
+
+                CHIP_ERROR err = listEncoder.Encode(contributor);
+                ReturnErrorOnFailure(err);
             }
-            return Loop::Continue;
-        });
-
-        ReturnErrorOnFailure(err);
-
-        // Encode non-Matter contributors
-        err = mContributorStorage->ForEachNonMatterContributor([&listEncoder](const NonMatterContributorEntry & entry) {
-            AmbientSensingUnion::Structs::UnionContributorStruct::Type contributor;
-            entry.CopyTo(contributor);
-
-            CHIP_ERROR encodeErr = listEncoder.Encode(contributor);
-            if (encodeErr != CHIP_NO_ERROR)
-            {
-                return Loop::Break;
-            }
-            return Loop::Continue;
-        });
-
-        return err;
+        }
+        return CHIP_NO_ERROR;
     });
 }
 
+// =============================================================================
+// Health Recalculation
+// =============================================================================
+
 void AmbientSensingUnionCluster::RecalculateUnionHealth()
 {
-    if (mContributorStorage == nullptr)
-    {
-        SetUnionHealth(UnionHealthEnum::kNonFunctional);
-        return;
-    }
-
-    const size_t totalCount = mContributorStorage->GetTotalContributorCount();
-
-    // Early exit: no contributors means non-functional
-    if (totalCount == 0)
-    {
-        SetUnionHealth(UnionHealthEnum::kNonFunctional);
-        return;
-    }
-
     size_t onlineCount = 0;
-    bool iterationError = false;
 
-    // Count online Matter contributors
-    CHIP_ERROR err = mContributorStorage->ForEachMatterContributor(
-        [&onlineCount](const MatterContributorEntry & entry) {
-            if (entry.mHealth == UnionContributorHealthEnum::kUnionContributorOnline)
-            {
-                onlineCount++;
-            }
-            return Loop::Continue;
-        });
-
-    if (err != CHIP_NO_ERROR)
+    for (size_t i = 0; i < kMaxContributors; i++)
     {
-        ChipLogError(Zcl, "AmbientSensingUnion: Error iterating Matter contributors: %" CHIP_ERROR_FORMAT, err.Format());
-        iterationError = true;
+        if (mContributors[i].active &&
+            mContributors[i].health == UnionContributorHealthEnum::kUnionContributorOnline)
+        {
+            onlineCount++;
+        }
     }
 
-    // Count online non-Matter contributors
-    err = mContributorStorage->ForEachNonMatterContributor(
-        [&onlineCount](const NonMatterContributorEntry & entry) {
-            if (entry.mHealth == UnionContributorHealthEnum::kUnionContributorOnline)
-            {
-                onlineCount++;
-            }
-            return Loop::Continue;
-        });
-
-    if (err != CHIP_NO_ERROR)
-    {
-        ChipLogError(Zcl, "AmbientSensingUnion: Error iterating non-Matter contributors: %" CHIP_ERROR_FORMAT, err.Format());
-        iterationError = true;
-    }
-
-    // On iteration error, conservatively report degraded if we have contributors
-    // but couldn't fully determine their state
-    if (iterationError)
-    {
-        ChipLogError(Zcl, "AmbientSensingUnion: Iteration error during health calculation, reporting degraded state");
-        SetUnionHealth(UnionHealthEnum::kLimitedDegraded);
-        return;
-    }
-
-    // Determine union health based on contributor health
     UnionHealthEnum newHealth;
-
-    if (onlineCount == 0)
+    if (mContributorCount == 0)
     {
-        // No contributors online - non-functional
         newHealth = UnionHealthEnum::kNonFunctional;
     }
-    else if (onlineCount == totalCount)
+    else if (onlineCount == mContributorCount)
     {
-        // All contributors online - fully functional
         newHealth = UnionHealthEnum::kFullyFunctional;
+    }
+    else if (onlineCount == 0)
+    {
+        newHealth = UnionHealthEnum::kNonFunctional;
     }
     else
     {
-        // Some contributors offline - limited/degraded
         newHealth = UnionHealthEnum::kLimitedDegraded;
     }
 
-    SetUnionHealth(newHealth);
+    if (mUnionHealth != newHealth)
+    {
+        mUnionHealth = newHealth;
+        NotifyAttributeChanged(UnionHealth::Id);
+
+        if (mDelegate != nullptr)
+        {
+            mDelegate->OnUnionHealthChanged(mUnionHealth);
+        }
+    }
 }
+
+// =============================================================================
+// Persistence
+// =============================================================================
 
 CHIP_ERROR AmbientSensingUnionCluster::LoadPersistedAttributes()
 {
@@ -620,8 +522,8 @@ CHIP_ERROR AmbientSensingUnionCluster::LoadPersistedAttributes()
     {
         mUnionNameLength               = loadedLength;
         mUnionNameBuffer[loadedLength] = '\0';
-        ChipLogProgress(Zcl, "AmbientSensingUnion: Loaded persisted UnionName: %.*s", static_cast<int>(mUnionNameLength),
-                        mUnionNameBuffer);
+        ChipLogProgress(Zcl, "AmbientSensingUnion: Loaded persisted UnionName: %.*s",
+                        static_cast<int>(mUnionNameLength), mUnionNameBuffer);
     }
     else if (err == CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND)
     {
@@ -644,3 +546,4 @@ CHIP_ERROR AmbientSensingUnionCluster::PersistUnionName()
 } // namespace Clusters
 } // namespace app
 } // namespace chip
+
