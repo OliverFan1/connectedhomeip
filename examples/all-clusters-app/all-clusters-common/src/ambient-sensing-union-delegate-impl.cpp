@@ -28,10 +28,9 @@ using namespace chip::app::Clusters::AmbientSensingUnion;
 
 namespace {
 
-// Endpoint where the cluster is instantiated
 constexpr EndpointId kAmbientSensingUnionEndpoint = 1;
 
-// Optional: Delegate implementation for application callbacks
+// Delegate implementation for application callbacks
 class AllClustersAmbientSensingUnionDelegate : public AmbientSensingUnionDelegate
 {
 public:

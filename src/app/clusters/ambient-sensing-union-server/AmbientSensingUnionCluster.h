@@ -87,7 +87,7 @@ public:
  * This cluster provides data modeling for multi-node ambient sensing systems,
  * allowing a union of sensors to be managed as a cohesive group.
  *
- * Per spec (ambient-sensing-union-cluster.xml):
+ * Per spec:
  * - UnionName: max 128 characters, writable, non-volatile
  * - UnionHealth: read-only, derived from contributor health states
  * - UnionContributorList: max 128 entries, read-only
@@ -96,7 +96,7 @@ public:
 class AmbientSensingUnionCluster : public DefaultServerCluster
 {
 public:
-    // Spec-defined limits (from ambient-sensing-union-cluster.xml)
+
     static constexpr size_t kMaxUnionNameLength       = 128;  // UnionName max length
     static constexpr size_t kMaxContributorNameLength = 128;  // ContributorName max length
     static constexpr size_t kMaxContributors          = 128;  // UnionContributorList max entries
@@ -104,7 +104,6 @@ public:
     /**
      * @brief Unified contributor entry supporting both Matter and non-Matter contributors.
      *
-     * Memory layout optimized for the common case (Matter contributors with no name).
      */
     struct ContributorEntry
     {
@@ -114,7 +113,6 @@ public:
             AmbientSensingUnion::UnionContributorHealthEnum::kUnionContributorOffline;
         bool active = false;
 
-        // Name storage for non-Matter contributors (nodeId == kUndefinedNodeId)
         char name[kMaxContributorNameLength + 1] = {0};
         size_t nameLength = 0;
 

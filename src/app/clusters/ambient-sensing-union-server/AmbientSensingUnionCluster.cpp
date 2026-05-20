@@ -1,5 +1,6 @@
 /*
  *    Copyright (c) 2026 Project CHIP Authors
+ *    All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -40,13 +41,11 @@ AmbientSensingUnionCluster::AmbientSensingUnionCluster(const Config & config) :
 {
     mUnionNameBuffer[0] = '\0';
 
-    // Initialize contributor array
     for (size_t i = 0; i < kMaxContributors; i++)
     {
         mContributors[i].Clear();
     }
 
-    // Copy initial union name if provided
     if (!config.mUnionName.empty())
     {
         size_t len = std::min(config.mUnionName.size(), kMaxUnionNameLength);
@@ -229,9 +228,18 @@ AmbientSensingUnionCluster::ContributorEntry * AmbientSensingUnionCluster::FindF
 // Matter Contributor Management
 // =============================================================================
 
+static bool IsValidContributorHealth(UnionContributorHealthEnum health)
+{
+    return health == UnionContributorHealthEnum::kUnionContributorOnline ||
+           health == UnionContributorHealthEnum::kUnionContributorOffline ||
+           health == UnionContributorHealthEnum::kUnknownEnumValue;
+}
+
 CHIP_ERROR AmbientSensingUnionCluster::AddMatterContributor(NodeId nodeId, EndpointId endpointId,
                                                              AmbientSensingUnion::UnionContributorHealthEnum health)
 {
+    VerifyOrReturnError(IsValidContributorHealth(health), CHIP_ERROR_INVALID_ARGUMENT);
+
     // Check for duplicate
     if (FindMatterContributor(nodeId, endpointId) != nullptr)
     {
@@ -376,18 +384,19 @@ CHIP_ERROR AmbientSensingUnionCluster::UpdateNonMatterContributorHealth(const Ch
 
 void AmbientSensingUnionCluster::ClearAllContributors()
 {
-    // Emit remove events for all active contributors
-    for (size_t i = 0; i < kMaxContributors; i++)
+    size_t clearedCount = 0;
+
+    for (size_t i = 0; i < kMaxContributors && clearedCount < mContributorCount; i++)
     {
         if (mContributors[i].active)
         {
             EmitContributorRemovedEvent(mContributors[i]);
             mContributors[i].Clear();
+            clearedCount++;
         }
     }
 
     mContributorCount = 0;
-
     NotifyAttributeChanged(UnionContributorList::Id);
     RecalculateUnionHealth();
 }
@@ -527,7 +536,7 @@ CHIP_ERROR AmbientSensingUnionCluster::LoadPersistedAttributes()
     }
     else if (err == CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND)
     {
-        ChipLogProgress(Zcl, "AmbientSensingUnion: No persisted UnionName found, using default");
+        ChipLogProgress(Zcl, "AmbientSensingUnion: No persisted UnionName found");
     }
 
     return err;

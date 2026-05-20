@@ -1,6 +1,6 @@
 /*
- *
  *    Copyright (c) 2026 Project CHIP Authors
+ *    All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -36,6 +36,11 @@ using namespace chip::app::Clusters::AmbientSensingUnion;
 
 namespace {
 
+/**
+ * @note Memory footprint: Each AmbientSensingUnionCluster instance uses approximately
+ * 16KB for contributor storage (128 entries × ~130 bytes each). Total static allocation
+ * depends on kAmbientSensingUnionMaxClusterCount.
+ */
 constexpr size_t kAmbientSensingUnionFixedClusterCount = AmbientSensingUnion::StaticApplicationConfig::kFixedClusterConfig.size();
 constexpr size_t kAmbientSensingUnionMaxClusterCount   = kAmbientSensingUnionFixedClusterCount + CHIP_DEVICE_CONFIG_DYNAMIC_ENDPOINT_COUNT;
 
@@ -89,7 +94,10 @@ public:
     }
 
 private:
-    static constexpr size_t kMaxKeyLength = 32;
+    static constexpr size_t kKeyPrefixLength = 6;  // "g/asu/"
+    static constexpr size_t kKeySuffixLength = 3;  // "/un"
+    static constexpr size_t kMaxEndpointHexLength = 4;  // 0xFFFF
+    static constexpr size_t kMaxKeyLength = kKeyPrefixLength + kMaxEndpointHexLength + kKeySuffixLength + 1;
 
     void BuildUnionNameKey(char * buffer, size_t bufferSize) const
     {
