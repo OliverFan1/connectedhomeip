@@ -228,17 +228,17 @@ AmbientSensingUnionCluster::ContributorEntry * AmbientSensingUnionCluster::FindF
 // Matter Contributor Management
 // =============================================================================
 
-static bool IsValidContributorHealth(UnionContributorHealthEnum health)
+static bool IsValidContributorStatus(UnionContributorStatusEnum status)
 {
-    return health == UnionContributorHealthEnum::kUnionContributorOnline ||
-           health == UnionContributorHealthEnum::kUnionContributorOffline ||
-           health == UnionContributorHealthEnum::kUnknownEnumValue;
+    return status == UnionContributorStatusEnum::kUnionContributorOnline ||
+           status == UnionContributorStatusEnum::kUnionContributorOffline ||
+           status == UnionContributorStatusEnum::kUnknownEnumValue;
 }
 
 CHIP_ERROR AmbientSensingUnionCluster::AddMatterContributor(NodeId nodeId, EndpointId endpointId,
-                                                             AmbientSensingUnion::UnionContributorHealthEnum health)
+                                                             AmbientSensingUnion::UnionContributorStatusEnum status)
 {
-    VerifyOrReturnError(IsValidContributorHealth(health), CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(IsValidContributorStatus(status), CHIP_ERROR_INVALID_ARGUMENT);
 
     // Check for duplicate
     if (FindMatterContributor(nodeId, endpointId) != nullptr)
@@ -257,7 +257,7 @@ CHIP_ERROR AmbientSensingUnionCluster::AddMatterContributor(NodeId nodeId, Endpo
     entry->Clear();
     entry->nodeId     = nodeId;
     entry->endpointId = endpointId;
-    entry->health     = health;
+    entry->status     = status;
     entry->active     = true;
     mContributorCount++;
 
@@ -284,21 +284,21 @@ CHIP_ERROR AmbientSensingUnionCluster::RemoveMatterContributor(NodeId nodeId, En
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR AmbientSensingUnionCluster::UpdateMatterContributorHealth(NodeId nodeId, EndpointId endpointId,
-                                                                      AmbientSensingUnion::UnionContributorHealthEnum health)
+CHIP_ERROR AmbientSensingUnionCluster::UpdateMatterContributorStatus(NodeId nodeId, EndpointId endpointId,
+                                                                      AmbientSensingUnion::UnionContributorStatusEnum status)
 {
     ContributorEntry * entry = FindMatterContributor(nodeId, endpointId);
     VerifyOrReturnError(entry != nullptr, CHIP_ERROR_NOT_FOUND);
 
-    if (entry->health == health)
+    if (entry->status == status)
     {
         return CHIP_NO_ERROR;
     }
 
-    entry->health = health;
+    entry->status = status;
 
     NotifyAttributeChanged(UnionContributorList::Id);
-    EmitContributorHealthChangedEvent(*entry);
+    EmitContributorStatusChangedEvent(*entry);
     RecalculateUnionHealth();
 
     return CHIP_NO_ERROR;
@@ -309,7 +309,7 @@ CHIP_ERROR AmbientSensingUnionCluster::UpdateMatterContributorHealth(NodeId node
 // =============================================================================
 
 CHIP_ERROR AmbientSensingUnionCluster::AddNonMatterContributor(const CharSpan & name,
-                                                                AmbientSensingUnion::UnionContributorHealthEnum health)
+                                                                AmbientSensingUnion::UnionContributorStatusEnum status)
 {
     // ContributorName is mandatory when NodeID is NULL
     VerifyOrReturnError(!name.empty(), CHIP_ERROR_INVALID_ARGUMENT);
@@ -331,7 +331,7 @@ CHIP_ERROR AmbientSensingUnionCluster::AddNonMatterContributor(const CharSpan & 
     // Initialize entry
     entry->Clear();
     entry->SetName(name);
-    entry->health = health;
+    entry->status = status;
     entry->active = true;
     mContributorCount++;
 
@@ -358,21 +358,21 @@ CHIP_ERROR AmbientSensingUnionCluster::RemoveNonMatterContributor(const CharSpan
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR AmbientSensingUnionCluster::UpdateNonMatterContributorHealth(const CharSpan & name,
-                                                                         AmbientSensingUnion::UnionContributorHealthEnum health)
+CHIP_ERROR AmbientSensingUnionCluster::UpdateNonMatterContributorStatus(const CharSpan & name,
+                                                                         AmbientSensingUnion::UnionContributorStatusEnum status)
 {
     ContributorEntry * entry = FindNonMatterContributor(name);
     VerifyOrReturnError(entry != nullptr, CHIP_ERROR_NOT_FOUND);
 
-    if (entry->health == health)
+    if (entry->status == status)
     {
         return CHIP_NO_ERROR;
     }
 
-    entry->health = health;
+    entry->status = status;
 
     NotifyAttributeChanged(UnionContributorList::Id);
-    EmitContributorHealthChangedEvent(*entry);
+    EmitContributorStatusChangedEvent(*entry);
     RecalculateUnionHealth();
 
     return CHIP_NO_ERROR;
@@ -384,19 +384,33 @@ CHIP_ERROR AmbientSensingUnionCluster::UpdateNonMatterContributorHealth(const Ch
 
 void AmbientSensingUnionCluster::ClearAllContributors()
 {
-    size_t clearedCount = 0;
+    if (mContributorCount == 0)
+    {
+        return;
+    }
 
-    for (size_t i = 0; i < kMaxContributors && clearedCount < mContributorCount; i++)
+    // Collect all active contributors into a temporary list before clearing, so we can emit a single bulk event.
+    AmbientSensingUnion::Structs::UnionContributorStruct::Type removedList[kMaxContributors];
+    size_t removedCount = 0;
+
+    for (size_t i = 0; i < kMaxContributors && removedCount < mContributorCount; i++)
     {
         if (mContributors[i].active)
         {
-            EmitContributorRemovedEvent(mContributors[i]);
+            mContributors[i].CopyTo(removedList[removedCount++]);
             mContributors[i].Clear();
-            clearedCount++;
         }
     }
 
     mContributorCount = 0;
+
+    // Emit a single UnionContributorRemoved event with all removed contributors
+    if (removedCount > 0)
+    {
+        EmitContributorsBulkRemovedEvent(
+            DataModel::List<const AmbientSensingUnion::Structs::UnionContributorStruct::Type>(removedList, removedCount));
+    }
+
     NotifyAttributeChanged(UnionContributorList::Id);
     RecalculateUnionHealth();
 }
@@ -412,8 +426,12 @@ void AmbientSensingUnionCluster::EmitContributorAddedEvent(const ContributorEntr
         return;
     }
 
+    AmbientSensingUnion::Structs::UnionContributorStruct::Type contributor;
+    entry.CopyTo(contributor);
+
     Events::UnionContributorAdded::Type event;
-    entry.CopyTo(event.addedContributor);
+    event.addedContributor =
+        DataModel::List<const AmbientSensingUnion::Structs::UnionContributorStruct::Type>(&contributor, 1);
 
     mContext->interactionContext.eventsGenerator.GenerateEvent(event, mPath.mEndpointId);
 }
@@ -425,24 +443,47 @@ void AmbientSensingUnionCluster::EmitContributorRemovedEvent(const ContributorEn
         return;
     }
 
+    AmbientSensingUnion::Structs::UnionContributorStruct::Type contributor;
+    entry.CopyTo(contributor);
+
     Events::UnionContributorRemoved::Type event;
-    entry.CopyTo(event.removedContributor);
+    event.removedContributor =
+        DataModel::List<const AmbientSensingUnion::Structs::UnionContributorStruct::Type>(&contributor, 1);
 
     mContext->interactionContext.eventsGenerator.GenerateEvent(event, mPath.mEndpointId);
 }
 
-void AmbientSensingUnionCluster::EmitContributorHealthChangedEvent(const ContributorEntry & entry)
+void AmbientSensingUnionCluster::EmitContributorStatusChangedEvent(const ContributorEntry & entry)
 {
     if (mContext == nullptr)
     {
         return;
     }
 
-    Events::UnionContributorHealthChanged::Type event;
-    entry.CopyTo(event.contributorHealth);
+    AmbientSensingUnion::Structs::UnionContributorStruct::Type contributor;
+    entry.CopyTo(contributor);
+
+    Events::UnionContributorStatusChanged::Type event;
+    event.statusChangedContributor =
+        DataModel::List<const AmbientSensingUnion::Structs::UnionContributorStruct::Type>(&contributor, 1);
 
     mContext->interactionContext.eventsGenerator.GenerateEvent(event, mPath.mEndpointId);
 }
+
+void AmbientSensingUnionCluster::EmitContributorsBulkRemovedEvent(
+    const DataModel::List<const AmbientSensingUnion::Structs::UnionContributorStruct::Type> & contributors)
+{
+    if (mContext == nullptr)
+    {
+        return;
+    }
+
+    Events::UnionContributorRemoved::Type event;
+    event.removedContributor = contributors;
+
+    mContext->interactionContext.eventsGenerator.GenerateEvent(event, mPath.mEndpointId);
+}
+
 
 // =============================================================================
 // Attribute Encoding
@@ -477,7 +518,7 @@ void AmbientSensingUnionCluster::RecalculateUnionHealth()
     for (size_t i = 0; i < kMaxContributors; i++)
     {
         if (mContributors[i].active &&
-            mContributors[i].health == UnionContributorHealthEnum::kUnionContributorOnline)
+            mContributors[i].status == UnionContributorStatusEnum::kUnionContributorOnline)
         {
             onlineCount++;
         }

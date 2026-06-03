@@ -100,6 +100,7 @@ public:
     static constexpr size_t kMaxUnionNameLength       = 128;  // UnionName max length
     static constexpr size_t kMaxContributorNameLength = 128;  // ContributorName max length
     static constexpr size_t kMaxContributors          = 128;  // UnionContributorList max entries
+    static constexpr size_t kMinContributors          = 1;    // UnionContributorList min entries
 
     /**
      * @brief Unified contributor entry supporting both Matter and non-Matter contributors.
@@ -109,8 +110,8 @@ public:
     {
         NodeId nodeId       = kUndefinedNodeId;
         EndpointId endpointId = kInvalidEndpointId;
-        AmbientSensingUnion::UnionContributorHealthEnum health =
-            AmbientSensingUnion::UnionContributorHealthEnum::kUnionContributorOffline;
+        AmbientSensingUnion::UnionContributorStatusEnum status =
+            AmbientSensingUnion::UnionContributorStatusEnum::kUnionContributorOffline;
         bool active = false;
 
         char name[kMaxContributorNameLength + 1] = {0};
@@ -134,7 +135,7 @@ public:
         {
             nodeId     = kUndefinedNodeId;
             endpointId = kInvalidEndpointId;
-            health     = AmbientSensingUnion::UnionContributorHealthEnum::kUnionContributorOffline;
+            status     = AmbientSensingUnion::UnionContributorStatusEnum::kUnionContributorOffline;
             active     = false;
             nameLength = 0;
             name[0]    = '\0';
@@ -154,7 +155,7 @@ public:
                 dest.contributorEndpointID.SetNull();
                 dest.contributorName.SetValue(GetName());
             }
-            dest.contributorHealth = health;
+            dest.contributorHealth = status;
         }
     };
 
@@ -188,6 +189,7 @@ public:
         AmbientSensingUnionDelegate * mDelegate               = nullptr;
         AmbientSensingUnionPersistenceDelegate * mPersistence = nullptr;
     };
+
 
     /**
      * @brief Constructs an AmbientSensingUnionCluster with the given configuration.
@@ -227,19 +229,19 @@ public:
 
     // Matter contributor management (NodeID is not null)
     CHIP_ERROR AddMatterContributor(NodeId nodeId, EndpointId endpointId,
-                                    AmbientSensingUnion::UnionContributorHealthEnum health =
-                                        AmbientSensingUnion::UnionContributorHealthEnum::kUnionContributorOnline);
+                                    AmbientSensingUnion::UnionContributorStatusEnum status =
+                                        AmbientSensingUnion::UnionContributorStatusEnum::kUnionContributorOnline);
     CHIP_ERROR RemoveMatterContributor(NodeId nodeId, EndpointId endpointId);
-    CHIP_ERROR UpdateMatterContributorHealth(NodeId nodeId, EndpointId endpointId,
-                                             AmbientSensingUnion::UnionContributorHealthEnum health);
+    CHIP_ERROR UpdateMatterContributorStatus(NodeId nodeId, EndpointId endpointId,
+                                             AmbientSensingUnion::UnionContributorStatusEnum status);
 
     // Non-Matter contributor management (NodeID is null, name is mandatory)
     CHIP_ERROR AddNonMatterContributor(const CharSpan & name,
-                                       AmbientSensingUnion::UnionContributorHealthEnum health =
-                                           AmbientSensingUnion::UnionContributorHealthEnum::kUnionContributorOnline);
+                                       AmbientSensingUnion::UnionContributorStatusEnum status =
+                                           AmbientSensingUnion::UnionContributorStatusEnum::kUnionContributorOnline);
     CHIP_ERROR RemoveNonMatterContributor(const CharSpan & name);
-    CHIP_ERROR UpdateNonMatterContributorHealth(const CharSpan & name,
-                                                AmbientSensingUnion::UnionContributorHealthEnum health);
+    CHIP_ERROR UpdateNonMatterContributorStatus(const CharSpan & name,
+                                                AmbientSensingUnion::UnionContributorStatusEnum status);
 
     // Clear all contributors
     void ClearAllContributors();
@@ -253,7 +255,10 @@ private:
     // Event emission helpers
     void EmitContributorAddedEvent(const ContributorEntry & entry);
     void EmitContributorRemovedEvent(const ContributorEntry & entry);
-    void EmitContributorHealthChangedEvent(const ContributorEntry & entry);
+    void EmitContributorStatusChangedEvent(const ContributorEntry & entry);
+    // Bulk event emission helper (used by ClearAllContributors)
+    void EmitContributorsBulkRemovedEvent(
+        const DataModel::List<const AmbientSensingUnion::Structs::UnionContributorStruct::Type> & contributors);
 
     // Attribute encoding
     CHIP_ERROR EncodeContributorList(AttributeValueEncoder & encoder);
