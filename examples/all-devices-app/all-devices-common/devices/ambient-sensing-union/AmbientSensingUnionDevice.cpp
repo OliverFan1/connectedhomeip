@@ -67,11 +67,5 @@ Clusters::AmbientSensingUnionCluster & AmbientSensingUnionDevice::GetAmbientSens
     return mAmbientSensingUnionCluster.Cluster();
 }
 
-Clusters::OccupancySensingCluster & AmbientSensingUnionDevice::GetOccupancySensingCluster()
-{
-    VerifyOrDie(mOccupancySensingCluster.IsConstructed());
-    return mOccupancySensingCluster.Cluster();
-}
-
 } // namespace app
 } // namespace chip

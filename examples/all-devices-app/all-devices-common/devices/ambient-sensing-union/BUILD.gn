@@ -24,7 +24,6 @@ source_set("ambient-sensing-union") {
     "${chip_root}/examples/all-devices-app/all-devices-common/devices/interface:single-endpoint-device",
     "${chip_root}/src/app/clusters/ambient-sensing-union-server",
     "${chip_root}/src/app/clusters/identify-server",
-    "${chip_root}/src/app/clusters/occupancy-sensor-server",
     "${chip_root}/src/data-model-providers/codedriven",
     "${chip_root}/src/lib/core",
     "${chip_root}/zzz_generated/app-common/devices/",

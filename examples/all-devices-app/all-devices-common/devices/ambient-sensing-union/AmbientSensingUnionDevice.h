@@ -19,7 +19,6 @@
 
 #include <app/clusters/ambient-sensing-union-server/AmbientSensingUnionCluster.h>
 #include <app/clusters/identify-server/IdentifyCluster.h>
-#include <app/clusters/occupancy-sensor-server/OccupancySensingCluster.h>
 #include <data-model-providers/codedriven/CodeDrivenDataModelProvider.h>
 #include <devices/interface/SingleEndpointDevice.h>
 #include <lib/support/TimerDelegate.h>
@@ -37,13 +36,11 @@ public:
     void Unregister(CodeDrivenDataModelProvider & provider) override;
 
     ::chip::app::Clusters::AmbientSensingUnionCluster & GetAmbientSensingUnionCluster();
-    ::chip::app::Clusters::OccupancySensingCluster & GetOccupancySensingCluster();
 
 protected:
     TimerDelegate & mTimerDelegate;
     LazyRegisteredServerCluster<::chip::app::Clusters::IdentifyCluster> mIdentifyCluster;
     LazyRegisteredServerCluster<::chip::app::Clusters::AmbientSensingUnionCluster> mAmbientSensingUnionCluster;
-    LazyRegisteredServerCluster<::chip::app::Clusters::OccupancySensingCluster> mOccupancySensingCluster;
 };
 
 } // namespace chip::app

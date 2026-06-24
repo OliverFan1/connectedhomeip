@@ -31,10 +31,8 @@ LoggingAmbientSensingUnionDevice::LoggingAmbientSensingUnionDevice(TimerDelegate
 CHIP_ERROR LoggingAmbientSensingUnionDevice::Register(EndpointId endpoint, CodeDrivenDataModelProvider & provider,
                                                       EndpointId parentId)
 {
-    // Let the base class create and register all clusters.
     ReturnErrorOnFailure(AmbientSensingUnionDevice::Register(endpoint, provider, parentId));
 
-    // Attach this object as the delegate now that the cluster exists.
     GetAmbientSensingUnionCluster().SetDelegate(this);
 
     return CHIP_NO_ERROR;
@@ -42,8 +40,6 @@ CHIP_ERROR LoggingAmbientSensingUnionDevice::Register(EndpointId endpoint, CodeD
 
 void LoggingAmbientSensingUnionDevice::Unregister(CodeDrivenDataModelProvider & provider)
 {
-    // Detach delegate before the base class destroys the cluster to avoid a
-    // dangling pointer.
     if (mAmbientSensingUnionCluster.IsConstructed())
     {
         GetAmbientSensingUnionCluster().SetDelegate(nullptr);

@@ -92,9 +92,6 @@ rm -rf /tmp/chip_all_devices_kvs
 
 # Read the contributor list attribute
 ./out/linux-x64-chip-tool-clang/chip-tool ambient-sensing-union read contributor-list 1 1
-
-# Read occupancy state (optional cluster, also present on same endpoint)
-./out/linux-x64-chip-tool-clang/chip-tool occupancy-sensing read occupancy 1 1
 ```
 
 ### Named Pipe Commands (Terminal B)

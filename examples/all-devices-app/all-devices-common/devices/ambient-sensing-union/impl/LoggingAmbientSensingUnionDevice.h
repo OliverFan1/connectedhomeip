@@ -29,8 +29,7 @@ namespace app {
  * @brief A basic implementation of an Ambient Sensing Union Device.
  *
  * Extends AmbientSensingUnionDevice with AmbientSensingUnionDelegate to log
- * union name and health changes. Mirrors the pattern of
- * LoggingOccupancySensorDevice relative to OccupancySensorDevice.
+ * union name and health changes.
  */
 class LoggingAmbientSensingUnionDevice
     : public AmbientSensingUnionDevice,
@@ -44,7 +43,6 @@ public:
                         EndpointId parentId = kInvalidEndpointId) override;
     void Unregister(CodeDrivenDataModelProvider & provider) override;
 
-    // AmbientSensingUnionDelegate
     void OnUnionNameChanged(const chip::CharSpan & unionName) override;
     void OnUnionHealthChanged(
         Clusters::AmbientSensingUnion::UnionHealthEnum unionHealth) override;
