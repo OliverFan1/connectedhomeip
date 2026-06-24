@@ -52,7 +52,7 @@ To update or validate this list manually, follow these steps:
 | 6         | Administrator Commissioning                                | 60 (0x003C)   | Yes                | Yes                 |                                       |
 | 7         | Air Quality                                                | 91 (0x005B)   | Yes                | Yes                 |                                       |
 | 8         | Ambient Context Sensing                                    | 1073 (0x0431) | No                 | No                  |                                       |
-| 9         | Ambient Sensing Union                                      | 1074 (0x0432) | No                 | No                  |                                       |
+| 9         | Ambient Sensing Union                                      | 1074 (0x0432) | Yes                | Yes                 |                                       |
 | 10        | Application Basic                                          | 1293 (0x050D) | No                 | No                  |                                       |
 | 11        | Application Launcher                                       | 1292 (0x050C) | No                 | No                  |                                       |
 | 12        | Audio Control                                              | 1298 (0x0512) | No                 | No                  |                                       |
@@ -203,4 +203,4 @@ To update or validate this list manually, follow these steps:
 | 157       | Wi-Fi Network Management                                   | 1105 (0x0451) | Yes                | Yes                 |                                       |
 | 158       | Window Covering                                            | 258 (0x0102)  | No                 | No                  |                                       |
 | 159       | Zone Management                                            | 1360 (0x0550) | Yes                | No                  |                                       |
-| **Total** | **159**                                                    |               | **86**             | **46**              |                                       |
+| **Total** | **159**                                                    |               | **87**             | **47**              |                                       |

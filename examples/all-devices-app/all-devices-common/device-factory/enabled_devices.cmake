@@ -37,6 +37,7 @@ set(ALL_DEVICES_DEVICE_SOURCES
     # keep-sorted: start
     "${ALL_DEVICES_COMMON_DIR}/devices/aggregator/AggregatorDevice.cpp"
     "${ALL_DEVICES_COMMON_DIR}/devices/air-quality-sensor/AirQualitySensorDevice.cpp"
+    "${ALL_DEVICES_COMMON_DIR}/devices/ambient-sensing-union/AmbientSensingUnionDevice.cpp"
     "${ALL_DEVICES_COMMON_DIR}/devices/boolean-state-sensor/BooleanStateSensorDevice.cpp"
     "${ALL_DEVICES_COMMON_DIR}/devices/bridged-node/BridgedNodeDevice.cpp"
     "${ALL_DEVICES_COMMON_DIR}/devices/chime/ChimeDevice.cpp"
@@ -115,6 +116,7 @@ foreach(_key
         # keep-sorted: start
         aggregator
         air-quality-sensor
+        ambient-sensing-union
         bridged-node
         chime
         contact-sensor

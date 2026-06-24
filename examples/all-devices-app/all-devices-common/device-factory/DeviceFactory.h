@@ -21,6 +21,7 @@
 #include <devices/Types.h>
 #include <devices/aggregator/AggregatorDevice.h>
 #include <devices/air-quality-sensor/AirQualitySensorDevice.h>
+#include <devices/ambient-sensing-union/impl/LoggingAmbientSensingUnionDevice.h>
 #include <devices/boolean-state-sensor/BooleanStateSensorDevice.h>
 #include <devices/bridged-node/BridgedNodeDevice.h>
 #include <devices/chime/ChimeDevice.h>
@@ -160,6 +161,13 @@ private:
                                 .unit      = MeasurementUnitEnum::kPpm,
                             },
                     });
+            });
+        }
+        if constexpr (ALL_DEVICES_ENABLE_AMBIENT_SENSING_UNION)
+        {
+            RegisterCreator("ambient-sensing-union", [this]() {
+                VerifyOrDie(mContext.has_value());
+                return std::make_unique<LoggingAmbientSensingUnionDevice>(mContext->timerDelegate);
             });
         }
         if constexpr (ALL_DEVICES_ENABLE_BRIDGED_NODE)

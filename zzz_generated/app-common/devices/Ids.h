@@ -230,6 +230,9 @@ constexpr uint8_t kDoorbellDeviceTypeRevision = 1;
 constexpr DeviceTypeId kAmbientContextSensorDeviceTypeId  = 0x00000150;
 constexpr uint8_t kAmbientContextSensorDeviceTypeRevision = 1;
 
+constexpr DeviceTypeId kAmbientSensingUnionDeviceTypeId  = 0x00000151;
+constexpr uint8_t kAmbientSensingUnionDeviceTypeRevision = 1;
+
 constexpr DeviceTypeId kProximityRangerDeviceTypeId  = 0x00000152;
 constexpr uint8_t kProximityRangerDeviceTypeRevision = 1;
 

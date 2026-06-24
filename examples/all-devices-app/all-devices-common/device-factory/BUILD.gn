@@ -32,6 +32,7 @@ source_set("device-factory") {
     ":enabled_devices_buildconfig",
     "${chip_root}/examples/all-devices-app/all-devices-common/devices/aggregator",
     "${chip_root}/examples/all-devices-app/all-devices-common/devices/air-quality-sensor",
+    "${chip_root}/examples/all-devices-app/all-devices-common/devices/ambient-sensing-union/impl:logging",
     "${chip_root}/examples/all-devices-app/all-devices-common/devices/boolean-state-sensor",
     "${chip_root}/examples/all-devices-app/all-devices-common/devices/bridged-node",
     "${chip_root}/examples/all-devices-app/all-devices-common/devices/chime",

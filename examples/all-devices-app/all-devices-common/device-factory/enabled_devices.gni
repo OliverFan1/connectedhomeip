@@ -51,6 +51,10 @@ _available_devices = [
     "AIR_QUALITY_SENSOR",
   ],
   [
+    "ambient-sensing-union",
+    "AMBIENT_SENSING_UNION",
+  ],
+  [
     "bridged-node",
     "BRIDGED_NODE",
   ],

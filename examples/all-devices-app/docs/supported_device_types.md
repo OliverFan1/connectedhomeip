@@ -49,29 +49,30 @@ To update or validate this list manually, follow these steps:
 | --------- | ------------------------------ | ------------ | ----- |
 | 1         | Aggregator                     | 14 (0x000E)  |       |
 | 2         | Air Quality Sensor             | 44 (0x002C)  |       |
-| 3         | Bridged Node                   | 19 (0x0013)  |       |
-| 4         | Chime                          | 326 (0x0146) |       |
-| 5         | Contact Sensor                 | 21 (0x0015)  |       |
-| 6         | Dimmable Light                 | 257 (0x0101) |       |
-| 7         | Fan                            | 43 (0x002B)  |       |
-| 8         | Flow Sensor                    | 774 (0x0306) |       |
-| 9         | Humidity Sensor                | 775 (0x0307) |       |
-| 10        | Light Sensor                   | 262 (0x0106) |       |
-| 11        | Network Infrastructure Manager | 144 (0x0090) |       |
-| 12        | Occupancy Sensor               | 263 (0x0107) |       |
-| 13        | On/Off Light                   | 256 (0x0100) |       |
-| 14        | Power Source                   | 17 (0x0011)  |       |
-| 15        | Pressure Sensor                | 773 (0x0305) |       |
-| 16        | Proximity Ranger               | 338 (0x0152) |       |
-| 17        | Rain Sensor                    | 68 (0x0044)  |       |
-| 18        | Root Node                      | 22 (0x0016)  |       |
-| 19        | Smoke CO Alarm                 | 118 (0x0076) |       |
-| 20        | Soil Sensor                    | 69 (0x0045)  |       |
-| 21        | Speaker                        | 34 (0x0022)  |       |
-| 22        | Temperature Sensor             | 770 (0x0302) |       |
-| 23        | Water Freeze Detector          | 65 (0x0041)  |       |
-| 24        | Water Leak Detector            | 67 (0x0043)  |       |
-| **Total** | **24**                         |              |       |
+| 3         | Ambient Sensing Union          | 337 (0x0151) |       |
+| 4         | Bridged Node                   | 19 (0x0013)  |       |
+| 5         | Chime                          | 326 (0x0146) |       |
+| 6         | Contact Sensor                 | 21 (0x0015)  |       |
+| 7         | Dimmable Light                 | 257 (0x0101) |       |
+| 8         | Fan                            | 43 (0x002B)  |       |
+| 9         | Flow Sensor                    | 774 (0x0306) |       |
+| 10        | Humidity Sensor                | 775 (0x0307) |       |
+| 11        | Light Sensor                   | 262 (0x0106) |       |
+| 12        | Network Infrastructure Manager | 144 (0x0090) |       |
+| 13        | Occupancy Sensor               | 263 (0x0107) |       |
+| 14        | On/Off Light                   | 256 (0x0100) |       |
+| 15        | Power Source                   | 17 (0x0011)  |       |
+| 16        | Pressure Sensor                | 773 (0x0305) |       |
+| 17        | Proximity Ranger               | 338 (0x0152) |       |
+| 18        | Rain Sensor                    | 68 (0x0044)  |       |
+| 19        | Root Node                      | 22 (0x0016)  |       |
+| 20        | Smoke CO Alarm                 | 118 (0x0076) |       |
+| 21        | Soil Sensor                    | 69 (0x0045)  |       |
+| 22        | Speaker                        | 34 (0x0022)  |       |
+| 23        | Temperature Sensor             | 770 (0x0302) |       |
+| 24        | Water Freeze Detector          | 65 (0x0041)  |       |
+| 25        | Water Leak Detector            | 67 (0x0043)  |       |
+| **Total** | **25**                         |              |       |
 
 ## Unimplemented Device Types (80 total)
 

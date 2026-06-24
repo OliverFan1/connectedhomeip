@@ -7811,6 +7811,8 @@ char const * DeviceTypeIdToText(chip::DeviceTypeId id)
         return "Doorbell";
     case 0x00000150:
         return "Ambient Context Sensor";
+    case 0x00000151:
+        return "Ambient Sensing Union";
     case 0x00000152:
         return "Proximity Ranger";
     case 0x00000202:
