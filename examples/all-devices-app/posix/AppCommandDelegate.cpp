@@ -177,10 +177,6 @@ public:
     }
 };
 
-// ---------------------------------------------------------------------------
-// AmbientSensingUnion command handlers
-// ---------------------------------------------------------------------------
-
 /**
  * Parses a NodeId from a JSON value that may be a hex string (e.g. "0x1234...") or a number.
  * Returns kUndefinedNodeId on failure.
@@ -209,13 +205,9 @@ static NodeId ParseNodeId(const Json::Value & json)
  * Usage example:
  *   echo '{"Name": "AddAmbientSensingContributor", "EndpointId": 1,
  *          "NodeId": "0x1234567890ABCDEF", "ContributorEndpointId": 2, "Status": 0}'
- *        > /tmp/chip_all_devices_fifo_<pid>
+ *        > /tmp/chip_all_devices_fifo
  *
  * JSON Arguments:
- *   - "Name": "AddAmbientSensingContributor"
- *   - "EndpointId": endpoint hosting the AmbientSensingUnion cluster
- *   - "NodeId": Node ID of the Matter contributor (hex string or number)
- *   - "ContributorEndpointId": endpoint of the contributor
  *   - "Status": 0 = Online, 1 = Offline
  */
 class AddAmbientSensingContributorCommandHandler : public AllDevicesAppNamedPipeCommandHandler
@@ -275,7 +267,7 @@ public:
  * Usage example:
  *   echo '{"Name": "RemoveAmbientSensingContributor", "EndpointId": 1,
  *          "NodeId": "0x1234567890ABCDEF", "ContributorEndpointId": 2}'
- *        > /tmp/chip_all_devices_fifo_<pid>
+ *        > /tmp/chip_all_devices_fifo
  */
 class RemoveAmbientSensingContributorCommandHandler : public AllDevicesAppNamedPipeCommandHandler
 {
@@ -326,7 +318,7 @@ public:
  * Usage example:
  *   echo '{"Name": "AddAmbientSensingNonMatterContributor", "EndpointId": 1,
  *          "ContributorName": "ZigbeeSensor1", "Status": 0}'
- *        > /tmp/chip_all_devices_fifo_<pid>
+ *        > /tmp/chip_all_devices_fifo
  */
 class AddAmbientSensingNonMatterContributorCommandHandler : public AllDevicesAppNamedPipeCommandHandler
 {
@@ -383,7 +375,7 @@ public:
  * Usage example:
  *   echo '{"Name": "RemoveAmbientSensingNonMatterContributor", "EndpointId": 1,
  *          "ContributorName": "ZigbeeSensor1"}'
- *        > /tmp/chip_all_devices_fifo_<pid>
+ *        > /tmp/chip_all_devices_fifo
  */
 class RemoveAmbientSensingNonMatterContributorCommandHandler : public AllDevicesAppNamedPipeCommandHandler
 {
@@ -432,12 +424,12 @@ public:
  * Usage example (Matter contributor):
  *   echo '{"Name": "UpdateAmbientSensingContributorStatus", "EndpointId": 1,
  *          "NodeId": "0x1234567890ABCDEF", "ContributorEndpointId": 2, "Status": 1}'
- *        > /tmp/chip_all_devices_fifo_<pid>
+ *        > /tmp/chip_all_devices_fifo
  *
  * Usage example (non-Matter contributor):
  *   echo '{"Name": "UpdateAmbientSensingContributorStatus", "EndpointId": 1,
  *          "ContributorName": "ZigbeeSensor1", "Status": 1}'
- *        > /tmp/chip_all_devices_fifo_<pid>
+ *        > /tmp/chip_all_devices_fifo
  */
 class UpdateAmbientSensingContributorStatusCommandHandler : public AllDevicesAppNamedPipeCommandHandler
 {
@@ -525,7 +517,7 @@ public:
  *
  * Usage example:
  *   echo '{"Name": "SetAmbientSensingUnionName", "EndpointId": 1, "UnionName": "LivingRoomUnion"}'
- *        > /tmp/chip_all_devices_fifo_<pid>
+ *        > /tmp/chip_all_devices_fifo
  */
 class SetAmbientSensingUnionNameCommandHandler : public AllDevicesAppNamedPipeCommandHandler
 {
@@ -641,7 +633,6 @@ void AllDevicesAppCommandDelegate::RegisterCommandHandlers()
     RegisterCommandHandler(std::make_unique<SetHoldTimeCommandHandler>());
     RegisterCommandHandler(std::make_unique<SetBooleanStateCommandHandler>());
     RegisterCommandHandler(std::make_unique<SetOnOffCommandHandler>());
-    // AmbientSensingUnion command handlers
     RegisterCommandHandler(std::make_unique<AddAmbientSensingContributorCommandHandler>());
     RegisterCommandHandler(std::make_unique<RemoveAmbientSensingContributorCommandHandler>());
     RegisterCommandHandler(std::make_unique<AddAmbientSensingNonMatterContributorCommandHandler>());

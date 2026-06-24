@@ -26,21 +26,6 @@
 
 namespace chip::app {
 
-/**
- * @brief Base device class for Ambient Sensing Union (device type 0x0151).
- *
- * Mandatory clusters (code-driven available):
- *   - Identify
- *   - Ambient Sensing Union
- *
- * Optional clusters (code-driven available):
- *   - Occupancy Sensing
- *
- * Missing (not yet code-driven in SDK):
- *   - Service Area (mandatory per spec)
- *   - Ambient Context Sensing (optional)
- *   - Boolean State Configuration (optional)
- */
 class AmbientSensingUnionDevice : public SingleEndpointDevice
 {
 public:
