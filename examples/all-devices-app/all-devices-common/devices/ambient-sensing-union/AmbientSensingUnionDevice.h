@@ -29,11 +29,6 @@ namespace chip::app {
 /**
  * @brief Base device class for Ambient Sensing Union (device type 0x0151).
  *
- * Handles cluster instantiation and lifetime only. Delegate logic is
- * intentionally absent — subclasses (e.g. LoggingAmbientSensingUnionDevice)
- * implement and attach the delegate, following the same pattern as
- * OccupancySensorDevice / LoggingOccupancySensorDevice.
- *
  * Mandatory clusters (code-driven available):
  *   - Identify
  *   - Ambient Sensing Union

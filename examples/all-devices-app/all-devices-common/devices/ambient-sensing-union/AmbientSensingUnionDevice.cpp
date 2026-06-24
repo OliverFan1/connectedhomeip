@@ -17,53 +17,60 @@
 
 #include "AmbientSensingUnionDevice.h"
 
+#include <devices/Types.h>
+#include <lib/support/logging/CHIPLogging.h>
+
+using namespace chip::app::Clusters;
+
 namespace chip {
 namespace app {
 
 AmbientSensingUnionDevice::AmbientSensingUnionDevice(TimerDelegate & timerDelegate) :
+    SingleEndpointDevice(Span<const DataModel::DeviceTypeEntry>(&Device::Type::kAmbientSensingUnion, 1)),
     mTimerDelegate(timerDelegate)
 {}
 
 CHIP_ERROR AmbientSensingUnionDevice::Register(chip::EndpointId endpoint, CodeDrivenDataModelProvider & provider,
                                                EndpointId parentId)
 {
-    using namespace chip::app::Clusters;
+    ReturnErrorOnFailure(SingleEndpointRegistration(endpoint, provider, parentId));
 
-    ReturnErrorOnFailure(mIdentifyCluster.Create(
-        IdentifyCluster::Config(endpoint), provider, parentId));
+    mIdentifyCluster.Create(IdentifyCluster::Config(endpoint, mTimerDelegate));
+    ReturnErrorOnFailure(provider.AddCluster(mIdentifyCluster.Registration()));
 
-    ReturnErrorOnFailure(mAmbientSensingUnionCluster.Create(
-        AmbientSensingUnionCluster::Config(endpoint), provider, parentId));
+    mAmbientSensingUnionCluster.Create(AmbientSensingUnionCluster::Config(endpoint));
+    ReturnErrorOnFailure(provider.AddCluster(mAmbientSensingUnionCluster.Registration()));
 
-    return CHIP_NO_ERROR;
+    return provider.AddEndpoint(mEndpointRegistration);
 }
 
 void AmbientSensingUnionDevice::Unregister(CodeDrivenDataModelProvider & provider)
 {
-    if (mOccupancySensingCluster.IsConstructed())
-    {
-        mOccupancySensingCluster.Destroy(provider);
-    }
+    SingleEndpointUnregistration(provider);
 
     if (mAmbientSensingUnionCluster.IsConstructed())
     {
-        mAmbientSensingUnionCluster.Destroy(provider);
+        LogErrorOnFailure(provider.RemoveCluster(&mAmbientSensingUnionCluster.Cluster()));
+        mAmbientSensingUnionCluster.Destroy();
     }
 
     if (mIdentifyCluster.IsConstructed())
     {
-        mIdentifyCluster.Destroy(provider);
+        LogErrorOnFailure(provider.RemoveCluster(&mIdentifyCluster.Cluster()));
+        mIdentifyCluster.Destroy();
     }
 }
 
 Clusters::AmbientSensingUnionCluster & AmbientSensingUnionDevice::GetAmbientSensingUnionCluster()
 {
-    return mAmbientSensingUnionCluster.Get();
+    VerifyOrDie(mAmbientSensingUnionCluster.IsConstructed());
+    return mAmbientSensingUnionCluster.Cluster();
 }
 
 Clusters::OccupancySensingCluster & AmbientSensingUnionDevice::GetOccupancySensingCluster()
 {
-    return mOccupancySensingCluster.Get();
+    VerifyOrDie(mOccupancySensingCluster.IsConstructed());
+    return mOccupancySensingCluster.Cluster();
 }
 
 } // namespace app
