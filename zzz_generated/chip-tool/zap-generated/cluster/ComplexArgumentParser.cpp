@@ -6166,8 +6166,10 @@ CHIP_ERROR ComplexArgumentParser::Setup(const char * label,
                                                                   value.isMember("contributorNodeID")));
     ReturnErrorOnFailure(ComplexArgumentParser::EnsureMemberExist(
         "UnionContributorStruct.contributorEndpointID", "contributorEndpointID", value.isMember("contributorEndpointID")));
-    ReturnErrorOnFailure(ComplexArgumentParser::EnsureMemberExist("UnionContributorStruct.contributorHealth", "contributorHealth",
-                                                                  value.isMember("contributorHealth")));
+    ReturnErrorOnFailure(ComplexArgumentParser::EnsureMemberExist("UnionContributorStruct.contributorName", "contributorName",
+                                                                  value.isMember("contributorName")));
+    ReturnErrorOnFailure(ComplexArgumentParser::EnsureMemberExist("UnionContributorStruct.contributorStatus", "contributorStatus",
+                                                                  value.isMember("contributorStatus")));
 
     char labelWithMember[kMaxLabelLength];
     snprintf(labelWithMember, sizeof(labelWithMember), "%s.%s", label, "contributorNodeID");
@@ -6179,16 +6181,13 @@ CHIP_ERROR ComplexArgumentParser::Setup(const char * label,
         ComplexArgumentParser::Setup(labelWithMember, request.contributorEndpointID, value["contributorEndpointID"]));
     valueCopy.removeMember("contributorEndpointID");
 
-    if (value.isMember("contributorName"))
-    {
-        snprintf(labelWithMember, sizeof(labelWithMember), "%s.%s", label, "contributorName");
-        ReturnErrorOnFailure(ComplexArgumentParser::Setup(labelWithMember, request.contributorName, value["contributorName"]));
-    }
+    snprintf(labelWithMember, sizeof(labelWithMember), "%s.%s", label, "contributorName");
+    ReturnErrorOnFailure(ComplexArgumentParser::Setup(labelWithMember, request.contributorName, value["contributorName"]));
     valueCopy.removeMember("contributorName");
 
-    snprintf(labelWithMember, sizeof(labelWithMember), "%s.%s", label, "contributorHealth");
-    ReturnErrorOnFailure(ComplexArgumentParser::Setup(labelWithMember, request.contributorHealth, value["contributorHealth"]));
-    valueCopy.removeMember("contributorHealth");
+    snprintf(labelWithMember, sizeof(labelWithMember), "%s.%s", label, "contributorStatus");
+    ReturnErrorOnFailure(ComplexArgumentParser::Setup(labelWithMember, request.contributorStatus, value["contributorStatus"]));
+    valueCopy.removeMember("contributorStatus");
 
     return ComplexArgumentParser::EnsureNoMembersRemaining(label, valueCopy);
 }
@@ -6198,7 +6197,7 @@ void ComplexArgumentParser::Finalize(chip::app::Clusters::AmbientSensingUnion::S
     ComplexArgumentParser::Finalize(request.contributorNodeID);
     ComplexArgumentParser::Finalize(request.contributorEndpointID);
     ComplexArgumentParser::Finalize(request.contributorName);
-    ComplexArgumentParser::Finalize(request.contributorHealth);
+    ComplexArgumentParser::Finalize(request.contributorStatus);
 }
 
 CHIP_ERROR ComplexArgumentParser::Setup(const char * label,

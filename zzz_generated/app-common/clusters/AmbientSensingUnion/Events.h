@@ -114,7 +114,8 @@ static constexpr PriorityLevel kPriorityLevel = PriorityLevel::Info;
 
 enum class Fields : uint8_t
 {
-    kStatusChangedContributor = 0,
+    kPreviousContributorStatus = 0,
+    kCurrentContributorStatus  = 1,
 };
 
 struct Type
@@ -125,7 +126,8 @@ public:
     static constexpr ClusterId GetClusterId() { return Clusters::AmbientSensingUnion::Id; }
     static constexpr bool kIsFabricScoped = false;
 
-    DataModel::List<const Structs::UnionContributorStruct::Type> statusChangedContributor;
+    DataModel::List<const Structs::UnionContributorStruct::Type> previousContributorStatus;
+    DataModel::List<const Structs::UnionContributorStruct::Type> currentContributorStatus;
 
     CHIP_ERROR Encode(TLV::TLVWriter & aWriter, TLV::Tag aTag) const;
 };
@@ -137,7 +139,8 @@ public:
     static constexpr EventId GetEventId() { return Events::UnionContributorStatusChanged::Id; }
     static constexpr ClusterId GetClusterId() { return Clusters::AmbientSensingUnion::Id; }
 
-    DataModel::DecodableList<Structs::UnionContributorStruct::DecodableType> statusChangedContributor;
+    DataModel::DecodableList<Structs::UnionContributorStruct::DecodableType> previousContributorStatus;
+    DataModel::DecodableList<Structs::UnionContributorStruct::DecodableType> currentContributorStatus;
 
     CHIP_ERROR Decode(TLV::TLVReader & reader);
 };

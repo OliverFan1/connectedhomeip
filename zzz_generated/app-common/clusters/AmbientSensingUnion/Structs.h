@@ -43,7 +43,7 @@ enum class Fields : uint8_t
     kContributorNodeID     = 0,
     kContributorEndpointID = 1,
     kContributorName       = 2,
-    kContributorHealth     = 3,
+    kContributorStatus     = 3,
 };
 
 struct Type
@@ -51,8 +51,8 @@ struct Type
 public:
     DataModel::Nullable<chip::NodeId> contributorNodeID;
     DataModel::Nullable<chip::EndpointId> contributorEndpointID;
-    Optional<chip::CharSpan> contributorName;
-    UnionContributorStatusEnum contributorHealth = static_cast<UnionContributorStatusEnum>(0);
+    DataModel::Nullable<chip::CharSpan> contributorName;
+    UnionContributorStatusEnum contributorStatus = static_cast<UnionContributorStatusEnum>(0);
 
     CHIP_ERROR Decode(TLV::TLVReader & reader);
 

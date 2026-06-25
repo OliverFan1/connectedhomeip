@@ -36,7 +36,7 @@ CHIP_ERROR Type::Encode(TLV::TLVWriter & aWriter, TLV::Tag aTag) const
     encoder.Encode(to_underlying(Fields::kContributorNodeID), contributorNodeID);
     encoder.Encode(to_underlying(Fields::kContributorEndpointID), contributorEndpointID);
     encoder.Encode(to_underlying(Fields::kContributorName), contributorName);
-    encoder.Encode(to_underlying(Fields::kContributorHealth), contributorHealth);
+    encoder.Encode(to_underlying(Fields::kContributorStatus), contributorStatus);
     return encoder.Finalize();
 }
 
@@ -62,9 +62,9 @@ CHIP_ERROR DecodableType::Decode(TLV::TLVReader & reader)
         {
             err = DataModel::Decode(reader, contributorName);
         }
-        else if (__context_tag == to_underlying(Fields::kContributorHealth))
+        else if (__context_tag == to_underlying(Fields::kContributorStatus))
         {
-            err = DataModel::Decode(reader, contributorHealth);
+            err = DataModel::Decode(reader, contributorStatus);
         }
 
         ReturnErrorOnFailure(err);

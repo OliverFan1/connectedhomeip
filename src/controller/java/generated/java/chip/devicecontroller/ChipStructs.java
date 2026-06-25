@@ -13205,31 +13205,31 @@ public static class AmbientContextSensingClusterPredictedActivityStruct {
 public static class AmbientSensingUnionClusterUnionContributorStruct {
   public @Nullable Long contributorNodeID;
   public @Nullable Integer contributorEndpointID;
-  public Optional<String> contributorName;
-  public Integer contributorHealth;
+  public @Nullable String contributorName;
+  public Integer contributorStatus;
   private static final long CONTRIBUTOR_NODE_ID_ID = 0L;
   private static final long CONTRIBUTOR_ENDPOINT_ID_ID = 1L;
   private static final long CONTRIBUTOR_NAME_ID = 2L;
-  private static final long CONTRIBUTOR_HEALTH_ID = 3L;
+  private static final long CONTRIBUTOR_STATUS_ID = 3L;
 
   public AmbientSensingUnionClusterUnionContributorStruct(
     @Nullable Long contributorNodeID,
     @Nullable Integer contributorEndpointID,
-    Optional<String> contributorName,
-    Integer contributorHealth
+    @Nullable String contributorName,
+    Integer contributorStatus
   ) {
     this.contributorNodeID = contributorNodeID;
     this.contributorEndpointID = contributorEndpointID;
     this.contributorName = contributorName;
-    this.contributorHealth = contributorHealth;
+    this.contributorStatus = contributorStatus;
   }
 
   public StructType encodeTlv() {
     ArrayList<StructElement> values = new ArrayList<>();
     values.add(new StructElement(CONTRIBUTOR_NODE_ID_ID, contributorNodeID != null ? new UIntType(contributorNodeID) : new NullType()));
     values.add(new StructElement(CONTRIBUTOR_ENDPOINT_ID_ID, contributorEndpointID != null ? new UIntType(contributorEndpointID) : new NullType()));
-    values.add(new StructElement(CONTRIBUTOR_NAME_ID, contributorName.<BaseTLVType>map((nonOptionalcontributorName) -> new StringType(nonOptionalcontributorName)).orElse(new EmptyType())));
-    values.add(new StructElement(CONTRIBUTOR_HEALTH_ID, new UIntType(contributorHealth)));
+    values.add(new StructElement(CONTRIBUTOR_NAME_ID, contributorName != null ? new StringType(contributorName) : new NullType()));
+    values.add(new StructElement(CONTRIBUTOR_STATUS_ID, new UIntType(contributorStatus)));
 
     return new StructType(values);
   }
@@ -13240,8 +13240,8 @@ public static class AmbientSensingUnionClusterUnionContributorStruct {
     }
     @Nullable Long contributorNodeID = null;
     @Nullable Integer contributorEndpointID = null;
-    Optional<String> contributorName = Optional.empty();
-    Integer contributorHealth = null;
+    @Nullable String contributorName = null;
+    Integer contributorStatus = null;
     for (StructElement element: ((StructType)tlvValue).value()) {
       if (element.contextTagNum() == CONTRIBUTOR_NODE_ID_ID) {
         if (element.value(BaseTLVType.class).type() == TLVType.UInt) {
@@ -13256,12 +13256,12 @@ public static class AmbientSensingUnionClusterUnionContributorStruct {
       } else if (element.contextTagNum() == CONTRIBUTOR_NAME_ID) {
         if (element.value(BaseTLVType.class).type() == TLVType.String) {
           StringType castingValue = element.value(StringType.class);
-          contributorName = Optional.of(castingValue.value(String.class));
+          contributorName = castingValue.value(String.class);
         }
-      } else if (element.contextTagNum() == CONTRIBUTOR_HEALTH_ID) {
+      } else if (element.contextTagNum() == CONTRIBUTOR_STATUS_ID) {
         if (element.value(BaseTLVType.class).type() == TLVType.UInt) {
           UIntType castingValue = element.value(UIntType.class);
-          contributorHealth = castingValue.value(Integer.class);
+          contributorStatus = castingValue.value(Integer.class);
         }
       }
     }
@@ -13269,7 +13269,7 @@ public static class AmbientSensingUnionClusterUnionContributorStruct {
       contributorNodeID,
       contributorEndpointID,
       contributorName,
-      contributorHealth
+      contributorStatus
     );
   }
 
@@ -13286,8 +13286,8 @@ public static class AmbientSensingUnionClusterUnionContributorStruct {
     output.append("\tcontributorName: ");
     output.append(contributorName);
     output.append("\n");
-    output.append("\tcontributorHealth: ");
-    output.append(contributorHealth);
+    output.append("\tcontributorStatus: ");
+    output.append(contributorStatus);
     output.append("\n");
     output.append("}\n");
     return output.toString();
