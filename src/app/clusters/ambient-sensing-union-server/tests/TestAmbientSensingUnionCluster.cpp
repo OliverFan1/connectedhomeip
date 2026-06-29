@@ -737,7 +737,6 @@ TEST_F(TestAmbientSensingUnionCluster, TestUnionContributorRemovedEvent)
 
 TEST_F(TestAmbientSensingUnionCluster, TestUnionContributorStatusChangedEvent)
 {
-
     auto cluster = std::make_unique<AmbientSensingUnionCluster>(
         AmbientSensingUnionCluster::Config{ kTestEndpointId }.WithDelegate(&mDelegate));
     EXPECT_EQ(cluster->Startup(mContext->Get()), CHIP_NO_ERROR);
@@ -756,11 +755,23 @@ TEST_F(TestAmbientSensingUnionCluster, TestUnionContributorStatusChangedEvent)
     {
         EXPECT_EQ(eventInfo.value().GetEventData(decodedEvent), CHIP_NO_ERROR);
 
-        auto iter = decodedEvent.statusChangedContributor.begin();
-        ASSERT_TRUE(iter.Next());
-        const auto & contributor = iter.GetValue();
-        EXPECT_EQ(contributor.contributorHealth, UnionContributorStatusEnum::kUnionContributorOffline);
-        EXPECT_FALSE(iter.Next());
+        // Verify previous status (was Online)
+        auto prevIter = decodedEvent.previousContributorStatus.begin();
+        ASSERT_TRUE(prevIter.Next());
+        const auto & previousContributor = prevIter.GetValue();
+        EXPECT_EQ(previousContributor.contributorStatus, UnionContributorStatusEnum::kUnionContributorOnline);
+        EXPECT_FALSE(previousContributor.contributorNodeID.IsNull());
+        EXPECT_EQ(previousContributor.contributorNodeID.Value(), kTestNodeId1);
+        EXPECT_FALSE(prevIter.Next());
+
+        // Verify current status (now Offline)
+        auto currIter = decodedEvent.currentContributorStatus.begin();
+        ASSERT_TRUE(currIter.Next());
+        const auto & currentContributor = currIter.GetValue();
+        EXPECT_EQ(currentContributor.contributorStatus, UnionContributorStatusEnum::kUnionContributorOffline);
+        EXPECT_FALSE(currentContributor.contributorNodeID.IsNull());
+        EXPECT_EQ(currentContributor.contributorNodeID.Value(), kTestNodeId1);
+        EXPECT_FALSE(currIter.Next());
     }
     else
     {
@@ -892,7 +903,6 @@ TEST_F(TestAmbientSensingUnionCluster, TestWriteReadOnlyUnionHealth)
 
 TEST_F(TestAmbientSensingUnionCluster, TestWriteReadOnlyContributorList)
 {
-
     auto cluster = std::make_unique<AmbientSensingUnionCluster>(AmbientSensingUnionCluster::Config{ kTestEndpointId });
     EXPECT_EQ(cluster->Startup(mContext->Get()), CHIP_NO_ERROR);
     chip::Testing::ClusterTester tester(*cluster);
@@ -900,7 +910,8 @@ TEST_F(TestAmbientSensingUnionCluster, TestWriteReadOnlyContributorList)
     Structs::UnionContributorStruct::Type contributor;
     contributor.contributorNodeID.SetNonNull(kTestNodeId1);
     contributor.contributorEndpointID.SetNonNull(kContributorEp1);
-    contributor.contributorHealth = UnionContributorStatusEnum::kUnionContributorOnline;
+    contributor.contributorName.SetNull();
+    contributor.contributorStatus = UnionContributorStatusEnum::kUnionContributorOnline;
 
     app::DataModel::List<Structs::UnionContributorStruct::Type> contributorList(&contributor, 1);
 

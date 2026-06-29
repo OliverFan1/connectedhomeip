@@ -298,10 +298,11 @@ CHIP_ERROR AmbientSensingUnionCluster::UpdateMatterContributorStatus(NodeId node
         return CHIP_NO_ERROR;
     }
 
+    auto previousStatus = entry->status;
     entry->status = status;
 
     NotifyAttributeChanged(UnionContributorList::Id);
-    EmitContributorStatusChangedEvent(*entry);
+    EmitContributorStatusChangedEvent(*entry, previousStatus);
     RecalculateUnionHealth();
 
     return CHIP_NO_ERROR;
@@ -367,15 +368,17 @@ CHIP_ERROR AmbientSensingUnionCluster::UpdateNonMatterContributorStatus(const Ch
     VerifyOrReturnError(IsValidContributorStatus(status), CHIP_ERROR_INVALID_ARGUMENT);
     ContributorEntry * entry = FindNonMatterContributor(name);
     VerifyOrReturnError(entry != nullptr, CHIP_ERROR_NOT_FOUND);
+
     if (entry->status == status)
     {
         return CHIP_NO_ERROR;
     }
 
+    auto previousStatus = entry->status;
     entry->status = status;
 
     NotifyAttributeChanged(UnionContributorList::Id);
-    EmitContributorStatusChangedEvent(*entry);
+    EmitContributorStatusChangedEvent(*entry, previousStatus);
     RecalculateUnionHealth();
 
     return CHIP_NO_ERROR;
@@ -411,16 +414,24 @@ void AmbientSensingUnionCluster::EmitContributorRemovedEvent(const ContributorEn
     mContext->interactionContext.eventsGenerator.GenerateEvent(event, mPath.mEndpointId);
 }
 
-void AmbientSensingUnionCluster::EmitContributorStatusChangedEvent(const ContributorEntry & entry)
+void AmbientSensingUnionCluster::EmitContributorStatusChangedEvent(
+    const ContributorEntry & entry,
+    AmbientSensingUnion::UnionContributorStatusEnum previousStatus)
 {
     VerifyOrReturn(mContext != nullptr);
 
-    AmbientSensingUnion::Structs::UnionContributorStruct::Type contributor;
-    entry.CopyTo(contributor);
+    AmbientSensingUnion::Structs::UnionContributorStruct::Type previousContributor;
+    entry.CopyTo(previousContributor);
+    previousContributor.contributorStatus = previousStatus;
+
+    AmbientSensingUnion::Structs::UnionContributorStruct::Type currentContributor;
+    entry.CopyTo(currentContributor);
 
     Events::UnionContributorStatusChanged::Type event;
-    event.statusChangedContributor =
-        DataModel::List<const AmbientSensingUnion::Structs::UnionContributorStruct::Type>(&contributor, 1);
+    event.previousContributorStatus =
+        DataModel::List<const AmbientSensingUnion::Structs::UnionContributorStruct::Type>(&previousContributor, 1);
+    event.currentContributorStatus =
+        DataModel::List<const AmbientSensingUnion::Structs::UnionContributorStruct::Type>(&currentContributor, 1);
 
     mContext->interactionContext.eventsGenerator.GenerateEvent(event, mPath.mEndpointId);
 }
