@@ -51,6 +51,7 @@
 #include <AppCommandDelegate.h>
 #include <BleInit.h>
 #include <TermHandling.h>
+#include <devices/ambient-sensing-union/impl/LoggingAmbientSensingUnionDevice.h>
 #include <devices/boolean-state-sensor/BooleanStateSensorDevice.h>
 #include <devices/interface/SingleEndpointDevice.h>
 #include <devices/occupancy-sensor/OccupancySensorDevice.h>
@@ -236,6 +237,12 @@ void SetupNamedPipe(CodeDrivenDataModelDevices & devices, const char * namedPipe
             auto * lightDevice = static_cast<LoggingOnOffLightDevice *>(device);
             gAllDevicesAppCommandDelegate.GetClusterImplementationRegistry()
                 .RegisterClusterInstance<chip::app::Clusters::OnOffCluster>(&lightDevice->OnOffCluster());
+        }
+        else if (config.type == "ambient-sensing-union")
+        {
+            auto * asuDevice = static_cast<LoggingAmbientSensingUnionDevice *>(device);
+            gAllDevicesAppCommandDelegate.GetClusterImplementationRegistry()
+                .RegisterClusterInstance<chip::app::Clusters::AmbientSensingUnionCluster>(&asuDevice->GetAmbientSensingUnionCluster());
         }
     }
 

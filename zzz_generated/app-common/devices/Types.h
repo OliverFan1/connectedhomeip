@@ -369,6 +369,11 @@ constexpr DataModel::DeviceTypeEntry kAmbientContextSensor = {
     .deviceTypeRevision = kAmbientContextSensorDeviceTypeRevision,
 };
 
+constexpr DataModel::DeviceTypeEntry kAmbientSensingUnion = {
+    .deviceTypeId       = kAmbientSensingUnionDeviceTypeId,
+    .deviceTypeRevision = kAmbientSensingUnionDeviceTypeRevision,
+};
+
 constexpr DataModel::DeviceTypeEntry kProximityRanger = {
     .deviceTypeId       = kProximityRangerDeviceTypeId,
     .deviceTypeRevision = kProximityRangerDeviceTypeRevision,

@@ -68,7 +68,96 @@ Interact with Code-Driven clusters on specific endpoints:
 
 ---
 
-## 2. Automated Integration Testing (`src/python_testing/`)
+## 2. Ambient Sensing Union Device Testing
+
+### Launch the Simulator with Ambient Sensing Union
+
+```bash
+rm -rf /tmp/chip_all_devices_kvs
+./out/linux-x64-all-devices-clang/all-devices-app \
+    --device ambient-sensing-union:1 \
+    --KVS /tmp/chip_all_devices_kvs \
+    --app-pipe /tmp/chip_all_devices_fifo \
+    --discriminator 3840
+```
+
+### Commission and Read Attributes via `chip-tool`
+
+```bash
+# Commission
+./out/linux-x64-chip-tool-clang/chip-tool pairing onnetwork 1 20202021
+
+# Read the union name attribute
+./out/linux-x64-chip-tool-clang/chip-tool ambient-sensing-union read union-name 1 1
+
+# Read the contributor list attribute
+./out/linux-x64-chip-tool-clang/chip-tool ambient-sensing-union read contributor-list 1 1
+```
+
+### Named Pipe Commands (Terminal B)
+
+The application opens a named FIFO at startup. Find the PID of the running
+process and locate the pipe path:
+
+**Set the union name:**
+
+```bash
+echo '{"Name": "SetAmbientSensingUnionName", "EndpointId": 1, "UnionName": "LivingRoomUnion"}' \
+    > /tmp/chip_all_devices_fifo
+```
+
+**Add a Matter contributor (Online):**
+
+```bash
+echo '{"Name": "AddAmbientSensingContributor", "EndpointId": 1, "NodeId": "0x1234567890ABCDEF", "ContributorEndpointId": 2, "Status": 0}' \
+    > /tmp/chip_all_devices_fifo
+```
+
+**Add a non-Matter contributor:**
+
+```bash
+echo '{"Name": "AddAmbientSensingNonMatterContributor", "EndpointId": 1, "ContributorName": "NonMatterSensor1", "Status": 0}' \
+    > /tmp/chip_all_devices_fifo
+```
+
+**Update Matter contributor status to Offline:**
+
+```bash
+echo '{"Name": "UpdateAmbientSensingContributorStatus", "EndpointId": 1, "NodeId": "0x1234567890ABCDEF", "ContributorEndpointId": 2, "Status": 1}' \
+    > /tmp/chip_all_devices_fifo
+```
+
+**Update non-Matter contributor status to Offline:**
+
+```bash
+echo '{"Name": "UpdateAmbientSensingContributorStatus", "EndpointId": 1, "ContributorName": "NonMatterSensor1", "Status": 1}' \
+    > /tmp/chip_all_devices_fifo
+```
+
+**Remove a Matter contributor:**
+
+```bash
+echo '{"Name": "RemoveAmbientSensingContributor", "EndpointId": 1, "NodeId": "0x1234567890ABCDEF", "ContributorEndpointId": 2}' \
+    > /tmp/chip_all_devices_fifo
+```
+
+**Remove a non-Matter contributor:**
+
+```bash
+echo '{"Name": "RemoveAmbientSensingNonMatterContributor", "EndpointId": 1, "ContributorName": "NonMatterSensor1"}' \
+    > /tmp/chip_all_devices_fifo
+```
+
+### Named Pipe Status Values Reference
+
+| Value | Meaning |
+|-------|---------|
+| `0`   | `Online` |
+| `1`   | `Offline` |
+
+---
+
+## 3. Automated Integration Testing (`src/python_testing/`)
 
 The SDK executes Python integration and certification test scripts against
 `all-devices-app`.
