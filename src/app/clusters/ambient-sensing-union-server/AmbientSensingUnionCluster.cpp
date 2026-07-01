@@ -420,18 +420,29 @@ void AmbientSensingUnionCluster::EmitContributorStatusChangedEvent(
 {
     VerifyOrReturn(mContext != nullptr);
 
-    AmbientSensingUnion::Structs::UnionContributorStruct::Type previousContributor;
-    entry.CopyTo(previousContributor);
-    previousContributor.contributorStatus = previousStatus;
+    uint8_t contributorIndex = 0;
+    uint8_t activeIndex      = 0;
+    for (size_t i = 0; i < kMaxContributors; i++)
+    {
+        if (mContributors[i].active)
+        {
+            if (&mContributors[i] == &entry)
+            {
+                contributorIndex = activeIndex;
+                break;
+            }
+            activeIndex++;
+        }
+    }
 
-    AmbientSensingUnion::Structs::UnionContributorStruct::Type currentContributor;
-    entry.CopyTo(currentContributor);
+    AmbientSensingUnion::Structs::ContributorStatusChangeStruct::Type statusChange;
+    statusChange.contributorIndex         = contributorIndex;
+    statusChange.previousContributorStatus = previousStatus;
+    statusChange.currentContributorStatus  = entry.status;
 
     Events::UnionContributorStatusChanged::Type event;
-    event.previousContributorStatus =
-        DataModel::List<const AmbientSensingUnion::Structs::UnionContributorStruct::Type>(&previousContributor, 1);
-    event.currentContributorStatus =
-        DataModel::List<const AmbientSensingUnion::Structs::UnionContributorStruct::Type>(&currentContributor, 1);
+    event.contributorStatusChange =
+        DataModel::List<const AmbientSensingUnion::Structs::ContributorStatusChangeStruct::Type>(&statusChange, 1);
 
     mContext->interactionContext.eventsGenerator.GenerateEvent(event, mPath.mEndpointId);
 }

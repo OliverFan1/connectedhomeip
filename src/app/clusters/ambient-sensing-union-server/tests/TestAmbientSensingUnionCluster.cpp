@@ -755,23 +755,20 @@ TEST_F(TestAmbientSensingUnionCluster, TestUnionContributorStatusChangedEvent)
     {
         EXPECT_EQ(eventInfo.value().GetEventData(decodedEvent), CHIP_NO_ERROR);
 
+        auto iter = decodedEvent.contributorStatusChange.begin();
+        ASSERT_TRUE(iter.Next());
+        const auto & statusChange = iter.GetValue();
+
+        // Verify contributor index (first and only contributor, so index 0)
+        EXPECT_EQ(statusChange.contributorIndex, 0u);
+
         // Verify previous status (was Online)
-        auto prevIter = decodedEvent.previousContributorStatus.begin();
-        ASSERT_TRUE(prevIter.Next());
-        const auto & previousContributor = prevIter.GetValue();
-        EXPECT_EQ(previousContributor.contributorStatus, UnionContributorStatusEnum::kUnionContributorOnline);
-        EXPECT_FALSE(previousContributor.contributorNodeID.IsNull());
-        EXPECT_EQ(previousContributor.contributorNodeID.Value(), kTestNodeId1);
-        EXPECT_FALSE(prevIter.Next());
+        EXPECT_EQ(statusChange.previousContributorStatus, UnionContributorStatusEnum::kUnionContributorOnline);
 
         // Verify current status (now Offline)
-        auto currIter = decodedEvent.currentContributorStatus.begin();
-        ASSERT_TRUE(currIter.Next());
-        const auto & currentContributor = currIter.GetValue();
-        EXPECT_EQ(currentContributor.contributorStatus, UnionContributorStatusEnum::kUnionContributorOffline);
-        EXPECT_FALSE(currentContributor.contributorNodeID.IsNull());
-        EXPECT_EQ(currentContributor.contributorNodeID.Value(), kTestNodeId1);
-        EXPECT_FALSE(currIter.Next());
+        EXPECT_EQ(statusChange.currentContributorStatus, UnionContributorStatusEnum::kUnionContributorOffline);
+
+        EXPECT_FALSE(iter.Next());
     }
     else
     {
