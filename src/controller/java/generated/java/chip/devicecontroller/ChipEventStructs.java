@@ -7227,23 +7227,18 @@ public static class AmbientSensingUnionClusterUnionContributorRemovedEvent {
   }
 }
 public static class AmbientSensingUnionClusterUnionContributorStatusChangedEvent {
-  public ArrayList<ChipStructs.AmbientSensingUnionClusterUnionContributorStruct> previousContributorStatus;
-  public ArrayList<ChipStructs.AmbientSensingUnionClusterUnionContributorStruct> currentContributorStatus;
-  private static final long PREVIOUS_CONTRIBUTOR_STATUS_ID = 0L;
-  private static final long CURRENT_CONTRIBUTOR_STATUS_ID = 1L;
+  public ArrayList<ChipStructs.AmbientSensingUnionClusterContributorStatusChangeStruct> contributorStatusChange;
+  private static final long CONTRIBUTOR_STATUS_CHANGE_ID = 0L;
 
   public AmbientSensingUnionClusterUnionContributorStatusChangedEvent(
-    ArrayList<ChipStructs.AmbientSensingUnionClusterUnionContributorStruct> previousContributorStatus,
-    ArrayList<ChipStructs.AmbientSensingUnionClusterUnionContributorStruct> currentContributorStatus
+    ArrayList<ChipStructs.AmbientSensingUnionClusterContributorStatusChangeStruct> contributorStatusChange
   ) {
-    this.previousContributorStatus = previousContributorStatus;
-    this.currentContributorStatus = currentContributorStatus;
+    this.contributorStatusChange = contributorStatusChange;
   }
 
   public StructType encodeTlv() {
     ArrayList<StructElement> values = new ArrayList<>();
-    values.add(new StructElement(PREVIOUS_CONTRIBUTOR_STATUS_ID, ArrayType.generateArrayType(previousContributorStatus, (elementpreviousContributorStatus) -> elementpreviousContributorStatus.encodeTlv())));
-    values.add(new StructElement(CURRENT_CONTRIBUTOR_STATUS_ID, ArrayType.generateArrayType(currentContributorStatus, (elementcurrentContributorStatus) -> elementcurrentContributorStatus.encodeTlv())));
+    values.add(new StructElement(CONTRIBUTOR_STATUS_CHANGE_ID, ArrayType.generateArrayType(contributorStatusChange, (elementcontributorStatusChange) -> elementcontributorStatusChange.encodeTlv())));
 
     return new StructType(values);
   }
@@ -7252,24 +7247,17 @@ public static class AmbientSensingUnionClusterUnionContributorStatusChangedEvent
     if (tlvValue == null || tlvValue.type() != TLVType.Struct) {
       return null;
     }
-    ArrayList<ChipStructs.AmbientSensingUnionClusterUnionContributorStruct> previousContributorStatus = null;
-    ArrayList<ChipStructs.AmbientSensingUnionClusterUnionContributorStruct> currentContributorStatus = null;
+    ArrayList<ChipStructs.AmbientSensingUnionClusterContributorStatusChangeStruct> contributorStatusChange = null;
     for (StructElement element: ((StructType)tlvValue).value()) {
-      if (element.contextTagNum() == PREVIOUS_CONTRIBUTOR_STATUS_ID) {
+      if (element.contextTagNum() == CONTRIBUTOR_STATUS_CHANGE_ID) {
         if (element.value(BaseTLVType.class).type() == TLVType.Array) {
           ArrayType castingValue = element.value(ArrayType.class);
-          previousContributorStatus = castingValue.map((elementcastingValue) -> ChipStructs.AmbientSensingUnionClusterUnionContributorStruct.decodeTlv(elementcastingValue));
-        }
-      } else if (element.contextTagNum() == CURRENT_CONTRIBUTOR_STATUS_ID) {
-        if (element.value(BaseTLVType.class).type() == TLVType.Array) {
-          ArrayType castingValue = element.value(ArrayType.class);
-          currentContributorStatus = castingValue.map((elementcastingValue) -> ChipStructs.AmbientSensingUnionClusterUnionContributorStruct.decodeTlv(elementcastingValue));
+          contributorStatusChange = castingValue.map((elementcastingValue) -> ChipStructs.AmbientSensingUnionClusterContributorStatusChangeStruct.decodeTlv(elementcastingValue));
         }
       }
     }
     return new AmbientSensingUnionClusterUnionContributorStatusChangedEvent(
-      previousContributorStatus,
-      currentContributorStatus
+      contributorStatusChange
     );
   }
 
@@ -7277,11 +7265,8 @@ public static class AmbientSensingUnionClusterUnionContributorStatusChangedEvent
   public String toString() {
     StringBuilder output = new StringBuilder();
     output.append("AmbientSensingUnionClusterUnionContributorStatusChangedEvent {\n");
-    output.append("\tpreviousContributorStatus: ");
-    output.append(previousContributorStatus);
-    output.append("\n");
-    output.append("\tcurrentContributorStatus: ");
-    output.append(currentContributorStatus);
+    output.append("\tcontributorStatusChange: ");
+    output.append(contributorStatusChange);
     output.append("\n");
     output.append("}\n");
     return output.toString();

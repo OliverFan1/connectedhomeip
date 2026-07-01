@@ -6153,6 +6153,51 @@ void ComplexArgumentParser::Finalize(chip::app::Clusters::AmbientContextSensing:
     ComplexArgumentParser::Finalize(request.confidence);
 }
 
+CHIP_ERROR
+ComplexArgumentParser::Setup(const char * label,
+                             chip::app::Clusters::AmbientSensingUnion::Structs::ContributorStatusChangeStruct::Type & request,
+                             Json::Value & value)
+{
+    VerifyOrReturnError(value.isObject(), CHIP_ERROR_INVALID_ARGUMENT);
+
+    // Copy to track which members we already processed.
+    Json::Value valueCopy(value);
+
+    ReturnErrorOnFailure(ComplexArgumentParser::EnsureMemberExist("ContributorStatusChangeStruct.contributorIndex",
+                                                                  "contributorIndex", value.isMember("contributorIndex")));
+    ReturnErrorOnFailure(ComplexArgumentParser::EnsureMemberExist("ContributorStatusChangeStruct.previousContributorStatus",
+                                                                  "previousContributorStatus",
+                                                                  value.isMember("previousContributorStatus")));
+    ReturnErrorOnFailure(ComplexArgumentParser::EnsureMemberExist("ContributorStatusChangeStruct.currentContributorStatus",
+                                                                  "currentContributorStatus",
+                                                                  value.isMember("currentContributorStatus")));
+
+    char labelWithMember[kMaxLabelLength];
+    snprintf(labelWithMember, sizeof(labelWithMember), "%s.%s", label, "contributorIndex");
+    ReturnErrorOnFailure(ComplexArgumentParser::Setup(labelWithMember, request.contributorIndex, value["contributorIndex"]));
+    valueCopy.removeMember("contributorIndex");
+
+    snprintf(labelWithMember, sizeof(labelWithMember), "%s.%s", label, "previousContributorStatus");
+    ReturnErrorOnFailure(
+        ComplexArgumentParser::Setup(labelWithMember, request.previousContributorStatus, value["previousContributorStatus"]));
+    valueCopy.removeMember("previousContributorStatus");
+
+    snprintf(labelWithMember, sizeof(labelWithMember), "%s.%s", label, "currentContributorStatus");
+    ReturnErrorOnFailure(
+        ComplexArgumentParser::Setup(labelWithMember, request.currentContributorStatus, value["currentContributorStatus"]));
+    valueCopy.removeMember("currentContributorStatus");
+
+    return ComplexArgumentParser::EnsureNoMembersRemaining(label, valueCopy);
+}
+
+void ComplexArgumentParser::Finalize(
+    chip::app::Clusters::AmbientSensingUnion::Structs::ContributorStatusChangeStruct::Type & request)
+{
+    ComplexArgumentParser::Finalize(request.contributorIndex);
+    ComplexArgumentParser::Finalize(request.previousContributorStatus);
+    ComplexArgumentParser::Finalize(request.currentContributorStatus);
+}
+
 CHIP_ERROR ComplexArgumentParser::Setup(const char * label,
                                         chip::app::Clusters::AmbientSensingUnion::Structs::UnionContributorStruct::Type & request,
                                         Json::Value & value)

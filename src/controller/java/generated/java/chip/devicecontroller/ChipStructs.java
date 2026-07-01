@@ -13202,6 +13202,82 @@ public static class AmbientContextSensingClusterPredictedActivityStruct {
     return output.toString();
   }
 }
+public static class AmbientSensingUnionClusterContributorStatusChangeStruct {
+  public Integer contributorIndex;
+  public Integer previousContributorStatus;
+  public Integer currentContributorStatus;
+  private static final long CONTRIBUTOR_INDEX_ID = 0L;
+  private static final long PREVIOUS_CONTRIBUTOR_STATUS_ID = 1L;
+  private static final long CURRENT_CONTRIBUTOR_STATUS_ID = 2L;
+
+  public AmbientSensingUnionClusterContributorStatusChangeStruct(
+    Integer contributorIndex,
+    Integer previousContributorStatus,
+    Integer currentContributorStatus
+  ) {
+    this.contributorIndex = contributorIndex;
+    this.previousContributorStatus = previousContributorStatus;
+    this.currentContributorStatus = currentContributorStatus;
+  }
+
+  public StructType encodeTlv() {
+    ArrayList<StructElement> values = new ArrayList<>();
+    values.add(new StructElement(CONTRIBUTOR_INDEX_ID, new UIntType(contributorIndex)));
+    values.add(new StructElement(PREVIOUS_CONTRIBUTOR_STATUS_ID, new UIntType(previousContributorStatus)));
+    values.add(new StructElement(CURRENT_CONTRIBUTOR_STATUS_ID, new UIntType(currentContributorStatus)));
+
+    return new StructType(values);
+  }
+
+  public static AmbientSensingUnionClusterContributorStatusChangeStruct decodeTlv(BaseTLVType tlvValue) {
+    if (tlvValue == null || tlvValue.type() != TLVType.Struct) {
+      return null;
+    }
+    Integer contributorIndex = null;
+    Integer previousContributorStatus = null;
+    Integer currentContributorStatus = null;
+    for (StructElement element: ((StructType)tlvValue).value()) {
+      if (element.contextTagNum() == CONTRIBUTOR_INDEX_ID) {
+        if (element.value(BaseTLVType.class).type() == TLVType.UInt) {
+          UIntType castingValue = element.value(UIntType.class);
+          contributorIndex = castingValue.value(Integer.class);
+        }
+      } else if (element.contextTagNum() == PREVIOUS_CONTRIBUTOR_STATUS_ID) {
+        if (element.value(BaseTLVType.class).type() == TLVType.UInt) {
+          UIntType castingValue = element.value(UIntType.class);
+          previousContributorStatus = castingValue.value(Integer.class);
+        }
+      } else if (element.contextTagNum() == CURRENT_CONTRIBUTOR_STATUS_ID) {
+        if (element.value(BaseTLVType.class).type() == TLVType.UInt) {
+          UIntType castingValue = element.value(UIntType.class);
+          currentContributorStatus = castingValue.value(Integer.class);
+        }
+      }
+    }
+    return new AmbientSensingUnionClusterContributorStatusChangeStruct(
+      contributorIndex,
+      previousContributorStatus,
+      currentContributorStatus
+    );
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder output = new StringBuilder();
+    output.append("AmbientSensingUnionClusterContributorStatusChangeStruct {\n");
+    output.append("\tcontributorIndex: ");
+    output.append(contributorIndex);
+    output.append("\n");
+    output.append("\tpreviousContributorStatus: ");
+    output.append(previousContributorStatus);
+    output.append("\n");
+    output.append("\tcurrentContributorStatus: ");
+    output.append(currentContributorStatus);
+    output.append("\n");
+    output.append("}\n");
+    return output.toString();
+  }
+}
 public static class AmbientSensingUnionClusterUnionContributorStruct {
   public @Nullable Long contributorNodeID;
   public @Nullable Integer contributorEndpointID;

@@ -24,28 +24,22 @@ import matter.tlv.TlvReader
 import matter.tlv.TlvWriter
 
 class AmbientSensingUnionClusterUnionContributorStatusChangedEvent(
-  val previousContributorStatus:
-    List<chip.devicecontroller.cluster.structs.AmbientSensingUnionClusterUnionContributorStruct>,
-  val currentContributorStatus:
-    List<chip.devicecontroller.cluster.structs.AmbientSensingUnionClusterUnionContributorStruct>,
+  val contributorStatusChange:
+    List<
+      chip.devicecontroller.cluster.structs.AmbientSensingUnionClusterContributorStatusChangeStruct
+    >
 ) {
   override fun toString(): String = buildString {
     append("AmbientSensingUnionClusterUnionContributorStatusChangedEvent {\n")
-    append("\tpreviousContributorStatus : $previousContributorStatus\n")
-    append("\tcurrentContributorStatus : $currentContributorStatus\n")
+    append("\tcontributorStatusChange : $contributorStatusChange\n")
     append("}\n")
   }
 
   fun toTlv(tlvTag: Tag, tlvWriter: TlvWriter) {
     tlvWriter.apply {
       startStructure(tlvTag)
-      startArray(ContextSpecificTag(TAG_PREVIOUS_CONTRIBUTOR_STATUS))
-      for (item in previousContributorStatus.iterator()) {
-        item.toTlv(AnonymousTag, this)
-      }
-      endArray()
-      startArray(ContextSpecificTag(TAG_CURRENT_CONTRIBUTOR_STATUS))
-      for (item in currentContributorStatus.iterator()) {
+      startArray(ContextSpecificTag(TAG_CONTRIBUTOR_STATUS_CHANGE))
+      for (item in contributorStatusChange.iterator()) {
         item.toTlv(AnonymousTag, this)
       }
       endArray()
@@ -54,35 +48,22 @@ class AmbientSensingUnionClusterUnionContributorStatusChangedEvent(
   }
 
   companion object {
-    private const val TAG_PREVIOUS_CONTRIBUTOR_STATUS = 0
-    private const val TAG_CURRENT_CONTRIBUTOR_STATUS = 1
+    private const val TAG_CONTRIBUTOR_STATUS_CHANGE = 0
 
     fun fromTlv(
       tlvTag: Tag,
       tlvReader: TlvReader,
     ): AmbientSensingUnionClusterUnionContributorStatusChangedEvent {
       tlvReader.enterStructure(tlvTag)
-      val previousContributorStatus =
+      val contributorStatusChange =
         buildList<
-          chip.devicecontroller.cluster.structs.AmbientSensingUnionClusterUnionContributorStruct
+          chip.devicecontroller.cluster.structs.AmbientSensingUnionClusterContributorStatusChangeStruct
         > {
-          tlvReader.enterArray(ContextSpecificTag(TAG_PREVIOUS_CONTRIBUTOR_STATUS))
+          tlvReader.enterArray(ContextSpecificTag(TAG_CONTRIBUTOR_STATUS_CHANGE))
           while (!tlvReader.isEndOfContainer()) {
             this.add(
-              chip.devicecontroller.cluster.structs.AmbientSensingUnionClusterUnionContributorStruct
-                .fromTlv(AnonymousTag, tlvReader)
-            )
-          }
-          tlvReader.exitContainer()
-        }
-      val currentContributorStatus =
-        buildList<
-          chip.devicecontroller.cluster.structs.AmbientSensingUnionClusterUnionContributorStruct
-        > {
-          tlvReader.enterArray(ContextSpecificTag(TAG_CURRENT_CONTRIBUTOR_STATUS))
-          while (!tlvReader.isEndOfContainer()) {
-            this.add(
-              chip.devicecontroller.cluster.structs.AmbientSensingUnionClusterUnionContributorStruct
+              chip.devicecontroller.cluster.structs
+                .AmbientSensingUnionClusterContributorStatusChangeStruct
                 .fromTlv(AnonymousTag, tlvReader)
             )
           }
@@ -91,10 +72,7 @@ class AmbientSensingUnionClusterUnionContributorStatusChangedEvent(
 
       tlvReader.exitContainer()
 
-      return AmbientSensingUnionClusterUnionContributorStatusChangedEvent(
-        previousContributorStatus,
-        currentContributorStatus,
-      )
+      return AmbientSensingUnionClusterUnionContributorStatusChangedEvent(contributorStatusChange)
     }
   }
 }

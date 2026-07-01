@@ -9306,6 +9306,39 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
+@implementation MTRAmbientSensingUnionClusterContributorStatusChangeStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _contributorIndex = @(0);
+
+        _previousContributorStatus = @(0);
+
+        _currentContributorStatus = @(0);
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRAmbientSensingUnionClusterContributorStatusChangeStruct alloc] init];
+
+    other.contributorIndex = self.contributorIndex;
+    other.previousContributorStatus = self.previousContributorStatus;
+    other.currentContributorStatus = self.currentContributorStatus;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: contributorIndex:%@; previousContributorStatus:%@; currentContributorStatus:%@; >", NSStringFromClass([self class]), _contributorIndex, _previousContributorStatus, _currentContributorStatus];
+    return descriptionString;
+}
+
+@end
+
 @implementation MTRAmbientSensingUnionClusterUnionContributorStruct
 - (instancetype)init
 {
@@ -9401,9 +9434,7 @@ NS_ASSUME_NONNULL_BEGIN
 {
     if (self = [super init]) {
 
-        _previousContributorStatus = [NSArray array];
-
-        _currentContributorStatus = [NSArray array];
+        _contributorStatusChange = [NSArray array];
     }
     return self;
 }
@@ -9412,15 +9443,14 @@ NS_ASSUME_NONNULL_BEGIN
 {
     auto other = [[MTRAmbientSensingUnionClusterUnionContributorStatusChangedEvent alloc] init];
 
-    other.previousContributorStatus = self.previousContributorStatus;
-    other.currentContributorStatus = self.currentContributorStatus;
+    other.contributorStatusChange = self.contributorStatusChange;
 
     return other;
 }
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: previousContributorStatus:%@; currentContributorStatus:%@; >", NSStringFromClass([self class]), _previousContributorStatus, _currentContributorStatus];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: contributorStatusChange:%@; >", NSStringFromClass([self class]), _contributorStatusChange];
     return descriptionString;
 }
 

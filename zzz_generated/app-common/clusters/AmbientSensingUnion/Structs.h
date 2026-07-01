@@ -37,6 +37,31 @@ namespace app {
 namespace Clusters {
 namespace AmbientSensingUnion {
 namespace Structs {
+namespace ContributorStatusChangeStruct {
+enum class Fields : uint8_t
+{
+    kContributorIndex          = 0,
+    kPreviousContributorStatus = 1,
+    kCurrentContributorStatus  = 2,
+};
+
+struct Type
+{
+public:
+    uint8_t contributorIndex                             = static_cast<uint8_t>(0);
+    UnionContributorStatusEnum previousContributorStatus = static_cast<UnionContributorStatusEnum>(0);
+    UnionContributorStatusEnum currentContributorStatus  = static_cast<UnionContributorStatusEnum>(0);
+
+    CHIP_ERROR Decode(TLV::TLVReader & reader);
+
+    static constexpr bool kIsFabricScoped = false;
+
+    CHIP_ERROR Encode(TLV::TLVWriter & aWriter, TLV::Tag aTag) const;
+};
+
+using DecodableType = Type;
+
+} // namespace ContributorStatusChangeStruct
 namespace UnionContributorStruct {
 enum class Fields : uint8_t
 {

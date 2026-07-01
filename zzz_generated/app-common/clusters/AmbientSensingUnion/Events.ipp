@@ -97,9 +97,7 @@ CHIP_ERROR Type::Encode(TLV::TLVWriter & aWriter, TLV::Tag aTag) const
 {
     TLV::TLVType outer;
     ReturnErrorOnFailure(aWriter.StartContainer(aTag, TLV::kTLVType_Structure, outer));
-    ReturnErrorOnFailure(
-        DataModel::Encode(aWriter, TLV::ContextTag(Fields::kPreviousContributorStatus), previousContributorStatus));
-    ReturnErrorOnFailure(DataModel::Encode(aWriter, TLV::ContextTag(Fields::kCurrentContributorStatus), currentContributorStatus));
+    ReturnErrorOnFailure(DataModel::Encode(aWriter, TLV::ContextTag(Fields::kContributorStatusChange), contributorStatusChange));
     return aWriter.EndContainer(outer);
 }
 
@@ -113,13 +111,9 @@ CHIP_ERROR DecodableType::Decode(TLV::TLVReader & reader)
         VerifyOrReturnError(err != CHIP_ERROR_END_OF_TLV, CHIP_NO_ERROR);
         ReturnErrorOnFailure(err);
 
-        if (__context_tag == to_underlying(Fields::kPreviousContributorStatus))
+        if (__context_tag == to_underlying(Fields::kContributorStatusChange))
         {
-            err = DataModel::Decode(reader, previousContributorStatus);
-        }
-        else if (__context_tag == to_underlying(Fields::kCurrentContributorStatus))
-        {
-            err = DataModel::Decode(reader, currentContributorStatus);
+            err = DataModel::Decode(reader, contributorStatusChange);
         }
         else
         {
