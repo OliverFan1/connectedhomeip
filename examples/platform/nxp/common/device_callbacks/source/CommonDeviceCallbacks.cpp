@@ -25,12 +25,7 @@
 #include "CommonDeviceCallbacks.h"
 #include "AppTaskBase.h"
 
-#include <app-common/zap-generated/attributes/Accessors.h>
-#include <app-common/zap-generated/ids/Attributes.h>
-#include <app-common/zap-generated/ids/Clusters.h>
 #include <app/server/Dnssd.h>
-#include <app/util/attribute-storage.h>
-#include <app/util/attribute-table.h>
 
 #include <lib/support/CodeUtils.h>
 #if CHIP_ENABLE_OPENTHREAD && CHIP_DEVICE_CONFIG_CHIPOBLE_DISABLE_ADVERTISING_WHEN_PROVISIONED

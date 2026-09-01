@@ -26,11 +26,27 @@
 #include <app/server/Dnssd.h>
 #include <lib/dnssd/Advertiser.h>
 
+#if !CONFIG_NXP_ALL_DEVICES_APP
 #include <app/util/attribute-storage.h>
+#endif
+
 #include <data-model-providers/codegen/Instance.h>
+
+#if CONFIG_NXP_ALL_DEVICES_APP
+// AllDevicesServer replaces the default codegen DM + Server::Init path.
+// It sets up a CodeDrivenDataModelProvider and defers Server::Init until
+// a device type is selected via the "devtype set" CLI command.
+#include "AllDevicesServer.h"
+#endif
 #include <setup_payload/OnboardingCodesUtil.h>
 
+// network-commissioning.h is a shim that pulls in CodegenInstance.h, which
+// declares a virtual class whose vtable requires CodegenInstance.cpp. The
+// all-devices app uses code-driven RootNode for network commissioning and does
+// not link CodegenInstance.cpp, so skip this header for that build.
+#if !CONFIG_NXP_ALL_DEVICES_APP
 #include <app/clusters/network-commissioning/network-commissioning.h>
+#endif
 #include <platform/DefaultTimerDelegate.h>
 
 #include <platform/CommissionableDataProvider.h>
@@ -146,6 +162,18 @@ using namespace ::chip::DeviceLayer;
 using namespace ::chip::DeviceManager;
 using namespace ::chip::app::Clusters;
 
+#if CONFIG_NXP_ALL_DEVICES_APP
+// GetDeviceCallbacks() is required by CHIPDeviceManager::Init() to register the
+// device-event handler (WiFi/IP/DnsSd events). Provide the singleton here since
+// the all-devices app has no separate DeviceCallbacks.cpp.
+chip::DeviceManager::CHIPDeviceManagerCallbacks & chip::NXP::App::GetDeviceCallbacks()
+{
+    static chip::NXP::App::CommonDeviceCallbacks sCallbacks;
+    return sCallbacks;
+}
+#endif
+
+
 namespace {
 
 /**
@@ -178,11 +206,18 @@ static LastFabricRemovedDelegate sLastFabricRemovedDelegate;
 chip::DeviceLayer::DeviceInfoProviderImpl gExampleDeviceInfoProvider;
 #endif
 
-#if CONFIG_OPENTHREAD
+// The all-devices app uses ThreadRootNode (code-driven) for the Thread
+// NetworkCommissioning cluster. The codegen InstanceAndDriver is not used
+// in that build.
+#if CONFIG_OPENTHREAD && !CONFIG_NXP_ALL_DEVICES_APP
 app::Clusters::NetworkCommissioning::InstanceAndDriver<DeviceLayer::NetworkCommissioning::GenericThreadDriver>
     sThreadNetworkDriver(CHIP_DEVICE_CONFIG_THREAD_NETWORK_ENDPOINT_ID /*endpointId*/);
 #endif
 
+// The all-devices app manages NetworkCommissioning via its own code-driven
+// RootNode (WifiRootNode / ThreadRootNode). Skip the Codegen-based instance
+// which requires CodegenDataModelProvider and CodegenInstance.cpp.
+#if !CONFIG_NXP_ALL_DEVICES_APP
 #if CONFIG_CHIP_WIFI || CHIP_DEVICE_CONFIG_ENABLE_WPA
 app::Clusters::NetworkCommissioning::Instance sNetworkCommissioningInstance(0,
                                                                             chip::NXP::App::GetAppTask().GetWifiDriverInstance());
@@ -190,6 +225,7 @@ app::Clusters::NetworkCommissioning::Instance sNetworkCommissioningInstance(0,
 app::Clusters::NetworkCommissioning::Instance
     sNetworkCommissioningInstance(0, chip::NXP::App::GetAppTask().GetEthernetDriverInstance());
 #endif
+#endif // !CONFIG_NXP_ALL_DEVICES_APP
 
 #if CONFIG_CHIP_CRYPTO_PSA
 chip::Crypto::PSAOperationalKeystore sPSAOperationalKeystore{};
@@ -261,6 +297,11 @@ void chip::NXP::App::AppTaskBase::InitServer(intptr_t arg)
     chip::DeviceLayer::SetDeviceInfoProvider(&gExampleDeviceInfoProvider);
 #endif
 
+#if CONFIG_NXP_ALL_DEVICES_APP
+    // For the all-devices app, use the code-driven data model and defer Server::Init
+    // until a device type is selected via the "devtype set <type>" CLI command.
+    VerifyOrDie(chip::app::all_devices::InitAllDevicesServer(initParams) == CHIP_NO_ERROR);
+#else
     initParams.dataModelProvider = app::CodegenDataModelProviderInstance(initParams.persistentStorageDelegate);
 
 #if CONFIG_OPENTHREAD
@@ -273,18 +314,31 @@ void chip::NXP::App::AppTaskBase::InitServer(intptr_t arg)
 #endif
 
     VerifyOrDie((chip::Server::GetInstance().Init(initParams)) == CHIP_NO_ERROR);
+#endif // CONFIG_NXP_ALL_DEVICES_APP
 
+#if !CONFIG_NXP_ALL_DEVICES_APP
     // Register the delegate that triggers a factory reset when the last fabric is removed.
+    // For the all-devices app, Server::Init is deferred until a device type is selected,
+    // so this registration is done in AllDevicesServer.cpp after Server::Init succeeds.
     VerifyOrDie(chip::Server::GetInstance().GetFabricTable().AddFabricDelegate(&sLastFabricRemovedDelegate) == CHIP_NO_ERROR);
+#endif // !CONFIG_NXP_ALL_DEVICES_APP
 
-#if CONFIG_CHIP_APP_OPERATIONAL_KEYSTORE
+
+#if CONFIG_CHIP_APP_OPERATIONAL_KEYSTORE && !CONFIG_NXP_ALL_DEVICES_APP
+    // For the all-devices app, Server::Init is deferred until a device type is
+    // selected, so OperationalKeystore::Init is called in AllDevicesServer.cpp
+    // after Server::Init() succeeds.
     auto * persistentStorage = &Server::GetInstance().GetPersistentStorage();
     TEMPORARY_RETURN_IGNORED chip::NXP::App::OperationalKeystore::Init(persistentStorage);
 #endif
 
     GetAppTask().PostInitMatterServerInstance();
 
-#if CONFIG_DIAG_LOGS_DEMO
+#if CONFIG_DIAG_LOGS_DEMO && !CONFIG_NXP_ALL_DEVICES_APP
+    // For the all-devices app, Server::Init is deferred until a device type is
+    // selected, so DiagnosticLogsDemo (which accesses Server::GetInstance()) is
+    // called in AllDevicesServer.cpp after Server::Init() succeeds.
+
     TEMPORARY_RETURN_IGNORED chip::NXP::App::DiagnosticLogsDemo::DisplayUsage();
 #endif
 
@@ -296,9 +350,11 @@ void chip::NXP::App::AppTaskBase::InitServer(intptr_t arg)
     VerifyOrDie(WifiConnectAtboot(chip::NXP::App::GetAppTask().GetWifiDriverInstance()) == CHIP_NO_ERROR);
 #endif
 
-#if CONFIG_NXP_USE_POWER_DOWN
+#if CONFIG_NXP_USE_POWER_DOWN && !CONFIG_NXP_ALL_DEVICES_APP
+    // For the all-devices app, Server::Init is deferred until a device type is
+    // selected, so ICD observer registration is done in AllDevicesServer.cpp.
     VerifyOrDie(chip::Server::GetInstance().GetICDManager().RegisterObserver(&chip::NXP::App::GetAppICDObserver()));
-#endif // CONFIG_NXP_USE_POWER_DOWN
+#endif // CONFIG_NXP_USE_POWER_DOWN && !CONFIG_NXP_ALL_DEVICES_APP
 }
 
 CHIP_ERROR chip::NXP::App::AppTaskBase::Init()
@@ -368,8 +424,11 @@ CHIP_ERROR chip::NXP::App::AppTaskBase::Init()
         ChipLogError(DeviceLayer, "Error during ThreadStackMgr().InitThreadStack()");
         return err;
     }
+    // The all-devices app uses ThreadRootNode (code-driven) for the Thread
+    // NetworkCommissioning cluster. The codegen InstanceAndDriver is not used.
+#if !CONFIG_NXP_ALL_DEVICES_APP
     TEMPORARY_RETURN_IGNORED sThreadNetworkDriver.Init();
-
+#endif
     err = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::CONFIG_THREAD_DEVICE_TYPE);
     if (err != CHIP_NO_ERROR)
     {
@@ -404,6 +463,9 @@ CHIP_ERROR chip::NXP::App::AppTaskBase::Init()
     chip::NXP::App::BleAppMgr().PostMatterStackInit();
 #endif
 
+// The all-devices app uses its own code-driven RootNode for network
+// commissioning; sNetworkCommissioningInstance is not defined for that build.
+#if !CONFIG_NXP_ALL_DEVICES_APP
 #if CONFIG_CHIP_WIFI || CHIP_DEVICE_CONFIG_ENABLE_WPA
     TEMPORARY_RETURN_IGNORED sNetworkCommissioningInstance.Init();
 #ifdef ENABLE_CHIP_SHELL
@@ -412,6 +474,8 @@ CHIP_ERROR chip::NXP::App::AppTaskBase::Init()
 #elif CONFIG_CHIP_ETHERNET
     TEMPORARY_RETURN_IGNORED sNetworkCommissioningInstance.Init();
 #endif
+#endif // !CONFIG_NXP_ALL_DEVICES_APP
+
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
     if (err == CHIP_NO_ERROR)
     {
